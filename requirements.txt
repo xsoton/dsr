@@ -1,0 +1,6 @@
+pyserial==3.5
+pyvisa>=1.15
+pyvisa-py>=0.8.1
+gpib-ctypes>=0.3.0
+psutil
+zeroconf
