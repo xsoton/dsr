@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'design.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.0
+## Created by: Qt User Interface Compiler version 6.9.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -16,10 +16,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout,
-    QHBoxLayout, QLabel, QLineEdit, QListWidget,
-    QListWidgetItem, QMainWindow, QMenuBar, QProgressBar,
-    QPushButton, QRadioButton, QScrollArea, QSizePolicy,
-    QStatusBar, QTabWidget, QVBoxLayout, QWidget)
+    QHBoxLayout, QLabel, QLineEdit, QListView,
+    QMainWindow, QMenuBar, QProgressBar, QPushButton,
+    QRadioButton, QScrollArea, QSizePolicy, QStatusBar,
+    QTabWidget, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -285,7 +285,7 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_2.addWidget(self.frame_control)
 
-        self.curves_list = QListWidget(self.scrollAreaWidgetContents)
+        self.curves_list = QListView(self.scrollAreaWidgetContents)
         self.curves_list.setObjectName(u"curves_list")
 
         self.verticalLayout_2.addWidget(self.curves_list)

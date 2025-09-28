@@ -1,9 +1,10 @@
 from PySide6.QtCore import (
-	Qt, QCoreApplication, Signal, Slot, QFile, QRegularExpression,
+	Qt, QCoreApplication, QThread, Signal, Slot, QFile, QRegularExpression,
 	QLocale)
 from PySide6.QtGui import (
 	QGuiApplication, QPalette, QColor, QPixmap, QIcon, QTransform,
-	QRegularExpressionValidator, QDoubleValidator, QIntValidator)
+	QRegularExpressionValidator, QDoubleValidator, QIntValidator,
+	QStandardItemModel, QStandardItem)
 from PySide6.QtWidgets import *
 
 # import numpy as np
@@ -72,7 +73,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	# plot_widget: PlotWidget
 
 	etype: int = 0
-	eid:   int = 0
 
 	new    = Signal(int)
 	start  = Signal(int)
@@ -147,16 +147,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		self.session = session
 		self.etype = 0
-		self.eid = 0
 
 		self.set_parameters()
+
+		self.model = QStandardItemModel()
+		self.curves_list.setModel(self.model)
+		self.update_curvesList()
 
 		self.link_signals()
 
 	@Slot()
 	def set_parameters(self):
 		print("set_parameters")
-		self.eid = self.session.get_id(self.etype)
 		e = self.session.get_exp(self.etype)
 		e.rlock()
 		status      = e.status
@@ -223,6 +225,34 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.frame_mono.setDisabled(True)
 			self.tabs.tabBar().setDisabled(False)
 
+	@Slot()
+	def update_curvesList(self):
+		st = ["new", "running", "paused", "ended"]
+
+		self.session.rlock()
+		ids = self.session.ids
+		exp = self.session.exp
+		self.session.unlock()
+
+		self.model.clear()
+		parentItem = self.model.invisibleRootItem()
+
+		t = self.etype
+		id = ids[t]
+		for i in range(len(exp[t])):
+			e = exp[t][i]
+			e.rlock()
+			status = e.status
+			sampleName = e.sampleName
+			e.unlock()
+
+			item = QStandardItem(f"{i} : {sampleName} - {st[status]}")
+			item.setCheckable(True)
+			item.setSelectable(True)
+			parentItem.appendRow(item)
+
+		self.curves_list.setModel(self.model)
+
 	def link_signals(self):
 		print("link_signals")
 		self.sample_edit.returnPressed.connect(self.sample_edit_new_slot)
@@ -244,6 +274,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.tabs.currentChanged.connect(self.tabs_changed_slot)
 
 		self.session.expChanged.connect(self.set_parameters)
+		self.session.expChanged.connect(self.update_curvesList)
+		self.session.expAdded.connect(self.update_curvesList)
+		self.session.expAdded.connect(self.set_parameters)
 
 		self.new.connect(self.session.new_slot)
 		self.start.connect(self.session.start_slot)
@@ -264,6 +297,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.setWl.connect(self.session.setWl_slot)
 		self.setShutter.connect(self.session.setShutter_slot)
 
+	def check_exp(self):
+		pass
 		
 	def sample_edit_new_slot(self):
 		sampleName = self.sample_edit.text()
@@ -340,9 +375,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.session.rlock()
 		e = self.session.get_exp(self.etype)
 		self.session.unlock()
-		e.wlock()
+		e.rlock()
 		s = e.status
+		sampleName = e.sampleName
 		e.unlock()
+		if len(sampleName) == 0:
+			return
 		if   s == 0: self.start.emit(self.etype)
 		elif s == 1: self.pause.emit(self.etype)
 		elif s == 2: self.resume.emit(self.etype)
@@ -352,7 +390,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.session.rlock()
 		e = self.session.get_exp(self.etype)
 		self.session.unlock()
-		e.wlock()
+		e.rlock()
 		s = e.status
 		e.unlock()
 		if   s == 1: self.stop.emit(self.etype)
@@ -363,6 +401,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		print(f"tabs_changed_slot \"{index}\"")
 		self.etype = index
 		self.set_parameters()
+		self.update_curvesList()
 
 if __name__ == '__main__':
 	app = QApplication(sys.argv)

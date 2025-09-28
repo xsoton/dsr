@@ -53,6 +53,7 @@ class Session(QObject):
 	exp = [[], [], []]
 	dat = [[], [], []]
 
+	expAdded = Signal()
 	expChanged = Signal()
 	datChanged = Signal()
 
@@ -144,7 +145,7 @@ class Session(QObject):
 	def new_slot(self, etype: int):
 		print("new_slot")
 		self.new_exp(etype)
-		self.expChanged.emit()
+		self.expAdded.emit()
 
 	@Slot(int)
 	def start_slot(self, etype: int):
