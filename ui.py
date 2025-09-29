@@ -71,26 +71,18 @@ from experiment import Experiment, Data, Session
 
 class MainWindow(QMainWindow, Ui_MainWindow):
 	# plot_widget: PlotWidget
-
 	etype: int = 0
 
-	new    = Signal(int)
-	start  = Signal(int)
+	expStd = []
+	exp    = []
+
+	wl      = 550
+	shutter = False
+
+	start  = Signal(int, Experiment)
 	pause  = Signal(int)
 	resume = Signal(int)
 	stop   = Signal(int)
-
-	newSampleName  = Signal(int, str)
-	newStartWl     = Signal(int, float)
-	newStopWl      = Signal(int, float)
-	newStepWl      = Signal(int, float)
-	newDelay       = Signal(int, float)
-	newChannel     = Signal(int, int)
-	newVoltageFlag = Signal(int, bool)
-	newVoltage     = Signal(int, float)
-	newNplc        = Signal(int, int)
-	newAverageFlag = Signal(int, bool)
-	newAverage     = Signal(int, int)
 
 	setWl          = Signal(float)
 	setShutter     = Signal(bool)
@@ -145,50 +137,95 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.average_edit.setValidator(v)
 		# </filters>
 
-		self.session = session
 		self.etype = 0
 
-		self.set_parameters()
+		# fill STD experiments' parameters
+		e = Experiment()
+		e.sampleName = "Si"
+		e.startWl = 300
+		e.stopWl = 1100
+		e.stepWl = 5
+		e.wl = 300
+		e.channel = 2
+		self.expStd.append(e)
+		
+		e = Experiment()
+		e.sampleName = "InGaAs"
+		e.startWl = 900
+		e.stopWl = 1700
+		e.stepWl = 10
+		e.wl = 900
+		e.channel = 2
+		self.expStd.append(e)
+		
+		e = Experiment()
+		e.sampleName = ""
+		e.startWl = 300
+		e.stopWl = 2000
+		e.stepWl = 5
+		e.wl = 300
+		e.channel = 1
+		self.expStd.append(e)
+		
+		# copy current experiments' parameters from STD
+		self.exp.append(Experiment())
+		self.exp.append(Experiment())
+		self.exp.append(Experiment())
+		self.updateFromStd(0)
+		self.updateFromStd(1)
+		self.updateFromStd(2)
+
+		self.session = session
+
+		self.updateExpView()
 
 		self.model = QStandardItemModel()
 		self.curves_list.setModel(self.model)
-		self.update_curvesList()
+		self.updateCurvesList()
 
 		self.link_signals()
 
-	@Slot()
-	def set_parameters(self):
-		print("set_parameters")
-		e = self.session.get_exp(self.etype)
-		e.rlock()
-		status      = e.status
-		sampleName  = e.sampleName
-		startWl     = e.startWl
-		stopWl      = e.stopWl
-		stepWl      = e.stepWl
-		channel     = e.channel
-		voltageFlag = e.voltageFlag
-		voltage     = e.voltage
-		nplc        = e.nplc
-		averageFlag = e.averageFlag
-		average     = e.average
-		wl          = e.wl
-		e.unlock()
-		self.sample_edit.setText(sampleName)
-		self.start_edit.setText(f"{startWl}")
-		self.stop_edit.setText(f"{stopWl}")
-		self.step_edit.setText(f"{stepWl}")
-		self.channel1_radio.setChecked(True if channel == 1 else False)
-		self.channel2_radio.setChecked(True if channel == 2 else False)
-		self.voltage_check.setChecked(voltageFlag)
-		self.voltage_edit.setText(f"{voltage}")
-		self.nplc_edit.setText(f"{nplc}")
-		self.average_check.setChecked(averageFlag)
-		self.average_edit.setText(f"{average}")
-		self.progress_bar.setValue(int(100*(wl-startWl)/(stopWl-startWl)))
+	def updateFromStd(self, etype: int):
+		self.updateFromExp(etype, self.expStd[etype])
+
+	def updateFromExp(self, etype: int, exp: Experiment):
+		self.exp[etype].status      = exp.status
+		self.exp[etype].sampleName  = exp.sampleName
+		self.exp[etype].startWl     = exp.startWl
+		self.exp[etype].stopWl      = exp.stopWl
+		self.exp[etype].stepWl      = exp.stepWl
+		self.exp[etype].wl          = exp.wl
+		self.exp[etype].delay       = exp.delay
+		self.exp[etype].channel     = exp.channel
+		self.exp[etype].voltageFlag = exp.voltageFlag
+		self.exp[etype].voltage     = exp.voltage
+		self.exp[etype].nplc        = exp.nplc
+		self.exp[etype].averageFlag = exp.averageFlag
+		self.exp[etype].average     = exp.average
+
+	def updateExpView(self):
+		print("updateExpView")
+		
+		e = self.exp[self.etype]
+
+		self.sample_edit.setText(e.sampleName)
+		self.start_edit.setText(f"{e.startWl}")
+		self.stop_edit.setText(f"{e.stopWl}")
+		self.step_edit.setText(f"{e.stepWl}")
+		self.channel1_radio.setChecked(True if e.channel == 1 else False)
+		self.channel2_radio.setChecked(True if e.channel == 2 else False)
+		self.voltage_check.setChecked(e.voltageFlag)
+		self.voltage_edit.setText(f"{e.voltage}")
+		self.nplc_edit.setText(f"{e.nplc}")
+		self.average_check.setChecked(e.averageFlag)
+		self.average_edit.setText(f"{e.average}")
+		self.progress_bar.setValue(int(100*(e.wl-e.startWl)/(e.stopWl-e.startWl)))
+		
+		self.wl_edit.setText(f"{self.wl}")
+		self.shutter_check.setChecked(self.shutter)
 
 		# 0 - idle, 1 - started, 2 - paused, 3 - ended
-		if status == 0:
+		if e.status == 0:
 			self.start_button.setText("Start")
 			self.start_button.setDisabled(False)
 			self.stop_button.setText("Stop")
@@ -197,7 +234,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.frame_amp.setDisabled(False)
 			self.frame_mono.setDisabled(False)
 			self.tabs.tabBar().setDisabled(False)
-		elif status == 1:
+		elif e.status == 1:
 			self.start_button.setText("Pause")
 			self.start_button.setDisabled(False)
 			self.stop_button.setText("Stop")
@@ -206,7 +243,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(True)
 			self.tabs.tabBar().setDisabled(True)
-		elif status == 2:
+		elif e.status == 2:
 			self.start_button.setText("Resume")
 			self.start_button.setDisabled(False)
 			self.stop_button.setText("Stop")
@@ -215,7 +252,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(False)
 			self.tabs.tabBar().setDisabled(True)
-		elif status == 3:
+		elif e.status == 3:
 			self.start_button.setText("Start")
 			self.start_button.setDisabled(True)
 			self.stop_button.setText("New")
@@ -225,8 +262,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.frame_mono.setDisabled(True)
 			self.tabs.tabBar().setDisabled(False)
 
-	@Slot()
-	def update_curvesList(self):
+
+	# 3 models for every list!!!
+	def updateCurvesList(self):
 		st = ["new", "running", "paused", "ended"]
 
 		self.session.rlock()
@@ -236,6 +274,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		self.model.clear()
 		parentItem = self.model.invisibleRootItem()
+
+		it = None
 
 		t = self.etype
 		id = ids[t]
@@ -260,8 +300,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.stop_edit.returnPressed.connect(self.stop_edit_slot)
 		self.step_edit.returnPressed.connect(self.step_edit_slot)
 		self.delay_edit.returnPressed.connect(self.delay_edit_slot)
-		self.wl_edit.returnPressed.connect(self.wl_edit_slot)
-		self.shutter_check.clicked.connect(self.shutter_check_slot)
 		self.channel1_radio.clicked.connect(self.channel1_radio_slot)
 		self.channel2_radio.clicked.connect(self.channel2_radio_slot)
 		self.voltage_check.clicked.connect(self.voltage_check_slot)
@@ -271,137 +309,118 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.average_edit.returnPressed.connect(self.average_edit_slot)
 		self.start_button.released.connect(self.start_button_slot)
 		self.stop_button.released.connect(self.stop_button_slot)
+
+		self.wl_edit.returnPressed.connect(self.wl_edit_slot)
+		self.shutter_check.clicked.connect(self.shutter_check_slot)
+		
 		self.tabs.currentChanged.connect(self.tabs_changed_slot)
 
-		self.session.expChanged.connect(self.set_parameters)
-		self.session.expChanged.connect(self.update_curvesList)
-		self.session.expAdded.connect(self.update_curvesList)
-		self.session.expAdded.connect(self.set_parameters)
-
-		self.new.connect(self.session.new_slot)
 		self.start.connect(self.session.start_slot)
 		self.pause.connect(self.session.pause_slot)
 		self.resume.connect(self.session.resume_slot)
 		self.stop.connect(self.session.stop_slot)
-		self.newSampleName.connect(self.session.newSampleName_slot)
-		self.newStartWl.connect(self.session.newStartWl_slot)
-		self.newStopWl.connect(self.session.newStopWl_slot)
-		self.newStepWl.connect(self.session.newStepWl_slot)
-		self.newDelay.connect(self.session.newDelay_slot)
-		self.newChannel.connect(self.session.newChannel_slot)
-		self.newVoltageFlag.connect(self.session.newVoltageFlag_slot)
-		self.newVoltage.connect(self.session.newVoltage_slot)
-		self.newNplc.connect(self.session.newNplc_slot)
-		self.newAverageFlag.connect(self.session.newAverageFlag_slot)
-		self.newAverage.connect(self.session.newAverage_slot)
-		self.setWl.connect(self.session.setWl_slot)
-		self.setShutter.connect(self.session.setShutter_slot)
-
-	def check_exp(self):
-		pass
 		
+		# СИГНАЛЫ ДРАЙВЕРУ!!!
+		# self.setWl.connect(self.session.setWl_slot)
+		# self.setShutter.connect(self.session.setShutter_slot)
+
 	def sample_edit_new_slot(self):
 		sampleName = self.sample_edit.text()
+		self.exp[self.etype].sampleName = sampleName
 		print(f"sample_edit_new_slot \"{sampleName}\"")
-		self.newSampleName.emit(self.etype, sampleName)
 	
 	def start_edit_new_slot(self):
 		startWl = float(self.start_edit.text())
+		self.exp[self.etype].startWl = startWl
 		print(f"start_edit_new_slot \"{startWl}\"")
-		self.newStartWl.emit(self.etype, startWl)
 
 	def stop_edit_slot(self):
 		stopWl = float(self.stop_edit.text())
+		self.exp[self.etype].stopWl = stopWl
 		print(f"stop_edit_slot \"{stopWl}\"")
-		self.newStopWl.emit(self.etype, stopWl)
 
 	def step_edit_slot(self):
 		stepWl = float(self.step_edit.text())
+		self.exp[self.etype].stepWl = stepWl
 		print(f"step_edit_slot \"{stepWl}\"")
-		self.newStepWl.emit(self.etype, stepWl)
 
 	def delay_edit_slot(self):
 		delay = float(self.delay_edit.text())
+		self.exp[self.etype].delay = delay
 		print(f"delay_edit_slot \"{delay}\"")
-		self.newDelay.emit(self.etype, delay)
 
 	def channel1_radio_slot(self):
 		channel = 1 if self.channel1_radio.isChecked() else 2
+		self.exp[self.etype].channel = channel
 		print(f"channel1_radio_slot \"{channel}\"")
-		self.newChannel.emit(self.etype, channel)
 
 	def channel2_radio_slot(self):
 		channel = 2 if self.channel2_radio.isChecked() else 1
+		self.exp[self.etype].channel = channel
 		print(f"channel2_radio_slot \"{channel}\"")
-		self.newChannel.emit(self.etype, channel)
 
 	def voltage_check_slot(self):
 		voltageFlag = self.voltage_check.isChecked()
+		self.exp[self.etype].voltageFlag = voltageFlag
 		print(f"voltage_check_slot \"{voltageFlag}\"")
-		self.newVoltageFlag.emit(self.etype, voltageFlag)
 
 	def voltage_edit_slot(self):
 		voltage = float(self.voltage_edit.text())
+		self.exp[self.etype].voltage = voltage
 		print(f"voltage_edit_slot \"{voltage}\"")
-		self.newVoltage.emit(self.etype, voltage)
 
 	def nplc_edit_slot(self):
 		nplc = int(self.nplc_edit.text())
+		self.exp[self.etype].nplc = nplc
 		print(f"nplc_edit_slot \"{nplc}\"")
-		self.newNplc.emit(self.etype, nplc)
 
 	def average_check_slot(self):
 		averageFlag = self.average_check.isChecked()
+		self.exp[self.etype].averageFlag = averageFlag
 		print(f"average_check_slot \"{averageFlag}\"")
-		self.newAverageFlag.emit(self.etype, averageFlag)
 
 	def average_edit_slot(self):
 		average = int(self.average_edit.text())
+		self.exp[self.etype].average = average
 		print(f"average_edit_slot \"{average}\"")
-		self.newAverage.emit(self.etype, average)
 
 	def wl_edit_slot(self):
 		wl = float(self.wl_edit.text())
+		self.wl = wl
 		print(f"wl_edit_slot \"{wl}\"")
 		self.setWl.emit(wl)
 
 	def shutter_check_slot(self):
-		shutterFlag = self.shutter_check.isChecked()
-		print(f"shutter_check_slot \"{shutterFlag}\"")
-		self.setShutter.emit(shutterFlag)
-
-	def start_button_slot(self):
-		print(f"start_button_slot \"{self.start_button.text()}\"")
-		self.session.rlock()
-		e = self.session.get_exp(self.etype)
-		self.session.unlock()
-		e.rlock()
-		s = e.status
-		sampleName = e.sampleName
-		e.unlock()
-		if len(sampleName) == 0:
-			return
-		if   s == 0: self.start.emit(self.etype)
-		elif s == 1: self.pause.emit(self.etype)
-		elif s == 2: self.resume.emit(self.etype)
-
-	def stop_button_slot(self):
-		print(f"stop_button_slot \"{self.stop_button.text()}\"")
-		self.session.rlock()
-		e = self.session.get_exp(self.etype)
-		self.session.unlock()
-		e.rlock()
-		s = e.status
-		e.unlock()
-		if   s == 1: self.stop.emit(self.etype)
-		elif s == 2: self.stop.emit(self.etype)
-		elif s == 3: self.new.emit(self.etype)
+		shutter = self.shutter_check.isChecked()
+		self.shutter = shutter
+		print(f"shutter_check_slot \"{shutter}\"")
+		self.setShutter.emit(shutter)
 
 	def tabs_changed_slot(self, index: int):
 		print(f"tabs_changed_slot \"{index}\"")
 		self.etype = index
-		self.set_parameters()
-		self.update_curvesList()
+		self.updateExpView()
+		self.updateCurvesList()
+
+	def start_button_slot(self):
+		print(f"start_button_slot \"{self.start_button.text()}\"")
+		e = self.exp[self.etype]
+		if len(e.sampleName) == 0: return
+		if   e.status == 0: e.status = 1; self.start.emit(self.etype, e)
+		elif e.status == 1: e.status = 2; self.pause.emit(self.etype)
+		elif e.status == 2: e.status = 1; self.resume.emit(self.etype)
+		self.updateExpView()
+		self.updateCurvesList()
+
+	def stop_button_slot(self):
+		print(f"stop_button_slot \"{self.stop_button.text()}\"")
+		e = self.exp[self.etype]
+		if   e.status == 1: e.status = 3; self.stop.emit(self.etype)
+		elif e.status == 2: e.status = 3; self.stop.emit(self.etype)
+		elif e.status == 3: self.updateFromStd(self.etype)
+		self.updateExpView()
+		self.updateCurvesList()
+
 
 if __name__ == '__main__':
 	app = QApplication(sys.argv)

@@ -53,16 +53,14 @@ class Session(QObject):
 	exp = [[], [], []]
 	dat = [[], [], []]
 
-	expAdded = Signal()
-	expChanged = Signal()
-	datChanged = Signal()
+	start  = Signal(Experiment)
+	pause  = Signal()
+	resume = Signal()
+	stop   = Signal()
 
 	def __init__(self, parent=None):
 		super(Session, self).__init__(parent)
 		self.lock = QReadWriteLock()
-		self.new_exp(0)
-		self.new_exp(1)
-		self.new_exp(2)
 
 	def rlock(self):
 		self.lock.lockForRead()
@@ -106,216 +104,48 @@ class Session(QObject):
 		self.unlock()
 		return new_id
 
-	def get_id(self, etype: int):
-		if (etype < 0) or (etype > 2):
-			return -1
-		self.rlock()
-		i = self.ids[etype]
-		self.unlock()
-		return i
+	def updateFromExp(self, etype: int, e: Experiment):
+		self.exp[etype][self.ids[etype]].status      = e.status
+		self.exp[etype][self.ids[etype]].sampleName  = e.sampleName
+		self.exp[etype][self.ids[etype]].startWl     = e.startWl
+		self.exp[etype][self.ids[etype]].stopWl      = e.stopWl
+		self.exp[etype][self.ids[etype]].stepWl      = e.stepWl
+		self.exp[etype][self.ids[etype]].wl          = e.wl
+		self.exp[etype][self.ids[etype]].delay       = e.delay
+		self.exp[etype][self.ids[etype]].channel     = e.channel
+		self.exp[etype][self.ids[etype]].voltageFlag = e.voltageFlag
+		self.exp[etype][self.ids[etype]].voltage     = e.voltage
+		self.exp[etype][self.ids[etype]].nplc        = e.nplc
+		self.exp[etype][self.ids[etype]].averageFlag = e.averageFlag
+		self.exp[etype][self.ids[etype]].average     = e.average
 
-	def set_id(self, etype: int, id: int):
-		if (etype < 0) or (etype > 2) or (id < 0) or (id >= len(self.exp[etype])):
-			return
-		self.wlock()
-		ids[etype] = id
-		self.unlock()
-
-	def get_exp(self, etype: int):
-		if (etype < 0) or (etype > 2):
-			return None
-		if (self.ids[etype] < 0) or (self.ids[etype] >= len(self.exp[etype])):
-			return None
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		return e
-
-	def get_dat(self, etype: int):
-		if (etype < 0) or (etype > 2):
-			return None
-		if (self.ids[etype] < 0) or (self.ids[etype] >= len(self.dat[etype])):
-			return None
-		self.rlock()
-		e = self.dat[etype][self.ids[etype]]
-		self.unlock()
-		return d
-
-	@Slot(int)
-	def new_slot(self, etype: int):
-		print("new_slot")
-		self.new_exp(etype)
-		self.expAdded.emit()
-
-	@Slot(int)
-	def start_slot(self, etype: int):
+	@Slot(int, Experiment)
+	def start_slot(self, etype: int, e: Experiment):
 		print("start_slot")
-		self.rlock()
+		self.new_exp(etype)
+		self.updateFromExp(etype, e)
 		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
 		e.status = 1
-		e.unlock()
-		self.expChanged.emit()
+		e.dateTime = "???"
+		self.start.emit(e)
 
 	@Slot(int)
 	def pause_slot(self, etype: int):
 		print("pause_slot")
-		self.rlock()
 		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
 		e.status = 2
-		e.unlock()
-		self.expChanged.emit()
+		self.pause.emit()
 
 	@Slot(int)
 	def resume_slot(self, etype: int):
 		print("resume_slot")
-		self.rlock()
 		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
 		e.status = 1
-		e.unlock()
-		self.expChanged.emit()
+		self.resume.emit()
 
 	@Slot(int)
 	def stop_slot(self, etype: int):
 		print("stop_slot")
-		self.rlock()
 		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
 		e.status = 3
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(int, str)
-	def newSampleName_slot(self, etype: int, sampleName: str):
-		print("newSampleName_slot")
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
-		e.sampleName = sampleName
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(int, float)
-	def newStartWl_slot(self, etype: int, startWl: float):
-		print("newStartWl_slot")
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
-		e.startWl = startWl
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(int, float)
-	def newStopWl_slot(self, etype: int, stopWl: float):
-		print("newStopWl_slot")
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
-		e.stopWl = stopWl
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(int, float)
-	def newStepWl_slot(self, etype: int, stepWl: float):
-		print("newStepWl_slot")
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
-		e.stepWl = stepWl
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(int, float)
-	def newDelay_slot(self, etype: int, delay: float):
-		print("newDelay_slot")
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
-		e.delay = delay
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(int, int)
-	def newChannel_slot(self, etype: int, channel: int):
-		print("newChannel_slot")
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
-		e.channel = channel
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(int, bool)
-	def newVoltageFlag_slot(self, etype: int, voltageFlag: bool):
-		print("newVoltageFlag_slot")
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
-		e.voltageFlag = voltageFlag
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(int, float)
-	def newVoltage_slot(self, etype: int, voltage: float):
-		print("newVoltage_slot")
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
-		e.voltage = voltage
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(int, int)
-	def newNplc_slot(self, etype: int, nplc: int):
-		print("newNplc_slot")
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
-		e.nplc = nplc
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(int, bool)
-	def newAverageFlag_slot(self, etype: int, averageFlag: bool):
-		print("newAverageFlag_slot")
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
-		e.averageFlag = averageFlag
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(int, int)
-	def newAverage_slot(self, etype: int, average: int):
-		print("newAverage_slot")
-		self.rlock()
-		e = self.exp[etype][self.ids[etype]]
-		self.unlock()
-		e.wlock()
-		e.average = average
-		e.unlock()
-		self.expChanged.emit()
-
-	@Slot(float)
-	def setWl_slot(self, wl: float):
-		print("setWl_slot")
-
-	@Slot(bool)
-	def setShutter_slot(self, shutter: bool):
-		print("setShutter_slot")
+		self.stop.emit()
