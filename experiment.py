@@ -58,6 +58,11 @@ class Session(QObject):
 	resume = Signal()
 	stop   = Signal()
 
+	newExpStarted = Signal(int)
+	newExpPaused  = Signal(int)
+	newExpResumed = Signal(int)
+	newExpStoped  = Signal(int)
+
 	def __init__(self, parent=None):
 		super(Session, self).__init__(parent)
 		self.lock = QReadWriteLock()
@@ -79,28 +84,10 @@ class Session(QObject):
 		new_id = len(self.exp[etype])
 		e = Experiment()
 		d = Data()
-		if etype == 0:
-			e.sampleName = "Si"
-			e.startWl = 300
-			e.stopWl = 1100
-			e.stepWl = 5
-			e.channel = 2
-		elif etype == 1:
-			e.sampleName = "InGaAs"
-			e.startWl = 900
-			e.stopWl = 1700
-			e.stepWl = 10
-			e.channel = 2
-		elif etype == 2:
-			e.sampleName = ""
-			e.startWl = 300
-			e.stopWl = 2000
-			e.stepWl = 5
-			e.channel = 1
 		e.wl = e.startWl
-		self.dat[etype].append(d)
-		self.exp[etype].append(e)
 		self.ids[etype] = new_id
+		self.exp[etype].append(e)
+		self.dat[etype].append(d)
 		self.unlock()
 		return new_id
 
@@ -126,8 +113,9 @@ class Session(QObject):
 		self.updateFromExp(etype, e)
 		e = self.exp[etype][self.ids[etype]]
 		e.status = 1
-		e.dateTime = "???"
+		e.dateTime = "???" # GENERATE date
 		self.start.emit(e)
+		self.newExpStarted.emit(e)
 
 	@Slot(int)
 	def pause_slot(self, etype: int):
@@ -135,6 +123,7 @@ class Session(QObject):
 		e = self.exp[etype][self.ids[etype]]
 		e.status = 2
 		self.pause.emit()
+		self.newExpPaused.emit(e)
 
 	@Slot(int)
 	def resume_slot(self, etype: int):
@@ -142,6 +131,7 @@ class Session(QObject):
 		e = self.exp[etype][self.ids[etype]]
 		e.status = 1
 		self.resume.emit()
+		self.newExpResumed.emit(e)
 
 	@Slot(int)
 	def stop_slot(self, etype: int):
@@ -149,3 +139,4 @@ class Session(QObject):
 		e = self.exp[etype][self.ids[etype]]
 		e.status = 3
 		self.stop.emit()
+		self.newExpStoped.emit(e)

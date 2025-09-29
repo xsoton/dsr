@@ -79,6 +79,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	wl      = 550
 	shutter = False
 
+	curvesListModels = []
+
+	new    = Signal(int)
+	reset  = Signal(int)
 	start  = Signal(int, Experiment)
 	pause  = Signal(int)
 	resume = Signal(int)
@@ -98,13 +102,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.setWindowTitle("DSR600")
 		self.move(20, 20)
 
-		palette = QGuiApplication.palette()
-		palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, QColor(120, 120, 120))
-		palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button,     QColor(240, 240, 240))
-		palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text,       QColor(120, 120, 120))
-		palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(120, 120, 120))
-		palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base,       QColor(240, 240, 240))
-		self.setPalette(palette)
+		# palette = QGuiApplication.palette()
+		# palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, QColor(120, 120, 120))
+		# palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button,     QColor(240, 240, 240))
+		# palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text,       QColor(120, 120, 120))
+		# palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(120, 120, 120))
+		# palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base,       QColor(240, 240, 240))
+		# self.setPalette(palette)
 
 		# <filters>
 		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
@@ -179,8 +183,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		self.updateExpView()
 
-		self.model = QStandardItemModel()
-		self.curves_list.setModel(self.model)
+		self.curvesListModels.append(QStandardItemModel())
+		self.curvesListModels.append(QStandardItemModel())
+		self.curvesListModels.append(QStandardItemModel())
+		self.curves_list.setModel(self.curvesListModels[self.etype])
 		self.updateCurvesList()
 
 		self.link_signals()
@@ -209,6 +215,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		e = self.exp[self.etype]
 
 		self.sample_edit.setText(e.sampleName)
+		if e.sampleName == "":
+			self.sample_edit.setStyleSheet("background-color: yellow")
+		else:
+			self.sample_edit.setStyleSheet("")
 		self.start_edit.setText(f"{e.startWl}")
 		self.stop_edit.setText(f"{e.stopWl}")
 		self.step_edit.setText(f"{e.stepWl}")
@@ -228,8 +238,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		if e.status == 0:
 			self.start_button.setText("Start")
 			self.start_button.setDisabled(False)
-			self.stop_button.setText("Stop")
-			self.stop_button.setDisabled(True)
+			self.stop_button.setText("Reset")
+			self.stop_button.setDisabled(False)
 			self.frame_meas.setDisabled(False)
 			self.frame_amp.setDisabled(False)
 			self.frame_mono.setDisabled(False)
@@ -265,6 +275,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	# 3 models for every list!!!
 	def updateCurvesList(self):
+		print("updateCurvesList")
+
 		st = ["new", "running", "paused", "ended"]
 
 		self.session.rlock()
@@ -272,13 +284,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		exp = self.session.exp
 		self.session.unlock()
 
-		self.model.clear()
-		parentItem = self.model.invisibleRootItem()
+		model = self.curvesListModels[self.etype]
+
+		model.clear()
+		parentItem = model.invisibleRootItem()
 
 		it = None
 
 		t = self.etype
-		id = ids[t]
 		for i in range(len(exp[t])):
 			e = exp[t][i]
 			e.rlock()
@@ -291,11 +304,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			item.setSelectable(True)
 			parentItem.appendRow(item)
 
-		self.curves_list.setModel(self.model)
+		self.curves_list.setModel(model)
 
 	def link_signals(self):
 		print("link_signals")
 		self.sample_edit.returnPressed.connect(self.sample_edit_new_slot)
+		self.sample_edit.inputRejected.connect(self.sample_edit_rejected_slot)
 		self.start_edit.returnPressed.connect(self.start_edit_new_slot)
 		self.stop_edit.returnPressed.connect(self.stop_edit_slot)
 		self.step_edit.returnPressed.connect(self.step_edit_slot)
@@ -307,47 +321,101 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.nplc_edit.returnPressed.connect(self.nplc_edit_slot)
 		self.average_check.clicked.connect(self.average_check_slot)
 		self.average_edit.returnPressed.connect(self.average_edit_slot)
-		self.start_button.released.connect(self.start_button_slot)
-		self.stop_button.released.connect(self.stop_button_slot)
 
 		self.wl_edit.returnPressed.connect(self.wl_edit_slot)
 		self.shutter_check.clicked.connect(self.shutter_check_slot)
-		
+
+		self.start_button.released.connect(self.start_button_slot)
+		self.stop_button.released.connect(self.stop_button_slot)
+
+		self.sample_edit.textEdited.connect(self.sample_edit_edited_slot)
+		self.start_edit.textEdited.connect(self.start_edit_edited_slot)
+		self.stop_edit.textEdited.connect(self.stop_edit_edited_slot)
+		self.step_edit.textEdited.connect(self.step_edit_edited_slot)
+		self.delay_edit.textEdited.connect(self.delay_edit_edited_slot)
+		self.voltage_edit.textEdited.connect(self.voltage_edit_edited_slot)
+		self.nplc_edit.textEdited.connect(self.nplc_edit_edited_slot)
+		self.average_edit.textEdited.connect(self.average_edit_edited_slot)
+
+		self.wl_edit.textEdited.connect(self.wl_edit_edited_slot)
+
 		self.tabs.currentChanged.connect(self.tabs_changed_slot)
 
+		self.new.connect(self.new_slot)
+		self.reset.connect(self.reset_slot)
 		self.start.connect(self.session.start_slot)
 		self.pause.connect(self.session.pause_slot)
 		self.resume.connect(self.session.resume_slot)
 		self.stop.connect(self.session.stop_slot)
+
+		self.session.newExpStarted.connect(self.newExpStarted_slot)
+		self.session.newExpPaused.connect(self.newExpPaused_slot)
+		self.session.newExpResumed.connect(self.newExpResumed_slot)
+		self.session.newExpStoped.connect(self.newExpStoped_slot)
 		
 		# СИГНАЛЫ ДРАЙВЕРУ!!!
 		# self.setWl.connect(self.session.setWl_slot)
 		# self.setShutter.connect(self.session.setShutter_slot)
 
+		# БИНД СЛОТА!!!! setWl_done_slot
+
 	def sample_edit_new_slot(self):
 		sampleName = self.sample_edit.text()
 		self.exp[self.etype].sampleName = sampleName
+		self.sample_edit.setStyleSheet("")
 		print(f"sample_edit_new_slot \"{sampleName}\"")
+	def sample_edit_edited_slot(self, text):
+		if self.exp[self.etype].sampleName != text:
+			self.sample_edit.setStyleSheet("background: yellow; color: black")
+		print(f"sample_edit_edited_slot \"{text}\"")
+	def sample_edit_rejected_slot(self):
+		sampleName = self.sample_edit.text()
+		self.sample_edit.setStyleSheet("background: red; color: white")
+		print(f"sample_edit_rejected_slot \"{sampleName}\"")
 	
 	def start_edit_new_slot(self):
 		startWl = float(self.start_edit.text())
 		self.exp[self.etype].startWl = startWl
+		self.start_edit.setStyleSheet("")
 		print(f"start_edit_new_slot \"{startWl}\"")
+	def start_edit_edited_slot(self, text):
+		startWl = float(text)
+		if self.exp[self.etype].startWl != startWl:
+			self.start_edit.setStyleSheet("background: yellow")
+		print(f"start_edit_edited_slot \"{startWl}\"")
 
 	def stop_edit_slot(self):
 		stopWl = float(self.stop_edit.text())
 		self.exp[self.etype].stopWl = stopWl
+		self.stop_edit.setStyleSheet("")
 		print(f"stop_edit_slot \"{stopWl}\"")
+	def stop_edit_edited_slot(self, text):
+		stopWl = float(text)
+		if self.exp[self.etype].stopWl != stopWl:
+			self.stop_edit.setStyleSheet("background: yellow")
+		print(f"stop_edit_edited_slot \"{stopWl}\"")
 
 	def step_edit_slot(self):
 		stepWl = float(self.step_edit.text())
 		self.exp[self.etype].stepWl = stepWl
+		self.step_edit.setStyleSheet("")
 		print(f"step_edit_slot \"{stepWl}\"")
+	def step_edit_edited_slot(self, text):
+		stepWl = float(text)
+		if self.exp[self.etype].stepWl != stepWl:
+			self.step_edit.setStyleSheet("background: yellow")
+		print(f"step_edit_edited_slot \"{stepWl}\"")
 
 	def delay_edit_slot(self):
 		delay = float(self.delay_edit.text())
 		self.exp[self.etype].delay = delay
+		self.delay_edit.setStyleSheet("")
 		print(f"delay_edit_slot \"{delay}\"")
+	def delay_edit_edited_slot(self, text):
+		delay = float(text)
+		if self.exp[self.etype].delay != delay:
+			self.delay_edit.setStyleSheet("background: yellow")
+		print(f"delay_edit_edited_slot \"{delay}\"")
 
 	def channel1_radio_slot(self):
 		channel = 1 if self.channel1_radio.isChecked() else 2
@@ -367,12 +435,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def voltage_edit_slot(self):
 		voltage = float(self.voltage_edit.text())
 		self.exp[self.etype].voltage = voltage
+		self.voltage_edit.setStyleSheet("")
 		print(f"voltage_edit_slot \"{voltage}\"")
+	def voltage_edit_edited_slot(self, text):
+		voltage = float(text)
+		if self.exp[self.etype].voltage != voltage:
+			self.voltage_edit.setStyleSheet("background: yellow")
+		print(f"voltage_edit_edited_slot \"{voltage}\"")
 
 	def nplc_edit_slot(self):
 		nplc = int(self.nplc_edit.text())
 		self.exp[self.etype].nplc = nplc
+		self.nplc_edit.setStyleSheet("")
 		print(f"nplc_edit_slot \"{nplc}\"")
+	def nplc_edit_edited_slot(self, text):
+		nplc = int(text)
+		if self.exp[self.etype].nplc != nplc:
+			self.nplc_edit.setStyleSheet("background: yellow")
+		print(f"nplc_edit_edited_slot \"{nplc}\"")
 
 	def average_check_slot(self):
 		averageFlag = self.average_check.isChecked()
@@ -382,13 +462,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def average_edit_slot(self):
 		average = int(self.average_edit.text())
 		self.exp[self.etype].average = average
+		self.average_edit.setStyleSheet("")
 		print(f"average_edit_slot \"{average}\"")
+	def average_edit_edited_slot(self, text):
+		average = int(text)
+		if self.exp[self.etype].average != average:
+			self.average_edit.setStyleSheet("background: yellow")
+		print(f"average_edit_edited_slot \"{average}\"")
 
 	def wl_edit_slot(self):
 		wl = float(self.wl_edit.text())
 		self.wl = wl
+		self.wl_edit.setStyleSheet("")
 		print(f"wl_edit_slot \"{wl}\"")
 		self.setWl.emit(wl)
+	def wl_edit_edited_slot(self, text):
+		wl = float(text)
+		if self.wl != wl:
+			self.wl_edit.setStyleSheet("background: yellow")
+		print(f"wl_edit_edited_slot \"{wl}\"")
+	@Slot(float)
+	def setWl_done_slot(self, wl: float):
+		self.wl_edit.setStyleSheet("background: green")
+		print(f"wl_set_done_slot \"{wl}\"")
 
 	def shutter_check_slot(self):
 		shutter = self.shutter_check.isChecked()
@@ -409,17 +505,46 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		if   e.status == 0: e.status = 1; self.start.emit(self.etype, e)
 		elif e.status == 1: e.status = 2; self.pause.emit(self.etype)
 		elif e.status == 2: e.status = 1; self.resume.emit(self.etype)
-		self.updateExpView()
-		self.updateCurvesList()
 
 	def stop_button_slot(self):
 		print(f"stop_button_slot \"{self.stop_button.text()}\"")
 		e = self.exp[self.etype]
+		if   e.status == 0:               self.reset.emit(self.etype)
 		if   e.status == 1: e.status = 3; self.stop.emit(self.etype)
 		elif e.status == 2: e.status = 3; self.stop.emit(self.etype)
-		elif e.status == 3: self.updateFromStd(self.etype)
+		elif e.status == 3: e.status = 0; self.new.emit(self.etype)
+
+	@Slot(int)
+	def new_slot(self, etype: int):
 		self.updateExpView()
 		self.updateCurvesList()
+
+	@Slot(int)
+	def reset_slot(self, etype: int):
+		self.updateFromStd(etype)
+		self.updateExpView()
+		self.updateCurvesList()
+
+	@Slot(int)
+	def newExpStarted_slot(self, etype: int):
+		self.updateExpView()
+		self.updateCurvesList()
+
+	@Slot(int)
+	def newExpPaused_slot(self, etype: int):
+		self.updateExpView()
+		self.updateCurvesList()
+
+	@Slot(int)
+	def newExpResumed_slot(self, etype: int):
+		self.updateExpView()
+		self.updateCurvesList()
+
+	@Slot(int)
+	def newExpStoped_slot(self, etype: int):
+		self.updateExpView()
+		self.updateCurvesList()
+
 
 
 if __name__ == '__main__':
