@@ -1,6 +1,6 @@
 from PySide6.QtCore import (
 	Qt, QCoreApplication, QThread, Signal, Slot, QFile, QRegularExpression,
-	QLocale)
+	QLocale, QItemSelection, QItemSelectionModel)
 from PySide6.QtGui import (
 	QGuiApplication, QPalette, QColor, QPixmap, QIcon, QTransform,
 	QRegularExpressionValidator, QDoubleValidator, QIntValidator,
@@ -75,11 +75,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	exp = []
 	expList = [[], [], []]
+	dataShowList = [[], [], []]
 
 	wl      = 550
 	shutter = False
 
 	expListModels = []
+	expSelectionList = []
+	expCheckedList = [[], [], []]
 
 	sig_new    = Signal()
 	sig_reset  = Signal()
@@ -147,13 +150,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.expListModels.append(QStandardItemModel())
 		self.expListModels.append(QStandardItemModel())
 		self.expListModels.append(QStandardItemModel())
+		self.expListModels[0].itemChanged.connect(self.itemChanged_slot)
+		self.expListModels[1].itemChanged.connect(self.itemChanged_slot)
+		self.expListModels[2].itemChanged.connect(self.itemChanged_slot)
+		self.exp_list_view.setModel(self.expListModels[0])
+		self.exp_list_view.selectionModel().selectionChanged.connect(self.selectionChanged_slot)
+		self.expSelectionList.append(-1)
+		self.expSelectionList.append(-1)
+		self.expSelectionList.append(-1)
 		self.updateExpListView()
 
 		self.link_signals()
 
 	def updateExpView(self):
-		print("updateExpView")
-		
+		print(f"updateExpView {self.etype}")
+
 		e = self.exp[self.etype]
 
 		self.sample_edit.setText(e.sampleName)
@@ -174,9 +185,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.progress_bar.setValue(int(100*(e.currentWl-e.startWl)/(e.stopWl-e.startWl)))
 
 	def updateActiveView(self):
-		print("updateActiveView")
-		
 		e = self.exp[self.etype]
+		print(f"updateActiveView {e.status}")
 
 		# 0 - idle, 1 - started, 2 - paused, 3 - ended
 		if e.status == 0:
@@ -188,6 +198,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.frame_amp.setDisabled(False)
 			self.frame_mono.setDisabled(False)
 			self.tabs.tabBar().setDisabled(False)
+			self.exp_list_view.setDisabled(False)
 		elif e.status == 1:
 			self.start_button.setText("Pause")
 			self.start_button.setDisabled(False)
@@ -197,6 +208,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(True)
 			self.tabs.tabBar().setDisabled(True)
+			self.exp_list_view.setDisabled(True)
 		elif e.status == 2:
 			self.start_button.setText("Resume")
 			self.start_button.setDisabled(False)
@@ -206,6 +218,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(False)
 			self.tabs.tabBar().setDisabled(True)
+			self.exp_list_view.setDisabled(True)
 		elif e.status == 3:
 			self.start_button.setText("Start")
 			self.start_button.setDisabled(True)
@@ -215,19 +228,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(True)
 			self.tabs.tabBar().setDisabled(False)
+			self.exp_list_view.setDisabled(False)
 
 	def updateExpListView(self):
 		print("updateExpListView")
 
 		l = self.expList[self.etype]
+		s = self.expSelectionList[self.etype]
+		index = None
+		make_selection = False
+
+		self.exp_list_view.selectionModel().selectionChanged.disconnect(self.selectionChanged_slot)
 
 		model = self.expListModels[self.etype]
+		model.itemChanged.disconnect(self.itemChanged_slot)
 		model.clear()
 		parentItem = model.invisibleRootItem()
 
 		for i in range(len(l)):
 			e = l[i]
-			
+
 			e.rlock()
 			status = e.status
 			sampleName = e.sampleName
@@ -237,8 +257,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			item.setCheckable(True)
 			item.setSelectable(True)
 			parentItem.appendRow(item)
+			if i == s:
+				make_selection = True
+				index = item.index()
+			if i in self.expCheckedList[self.etype]:
+				item.setCheckState(Qt.Checked)
+
+		model.itemChanged.connect(self.itemChanged_slot)
 
 		self.exp_list_view.setModel(model)
+		if make_selection:
+			self.exp_list_view.selectionModel().select(index, QItemSelectionModel.SelectionFlag.ClearAndSelect)
+		self.exp_list_view.selectionModel().selectionChanged.connect(self.selectionChanged_slot)
 
 	def link_signals(self):
 		print("link_signals")
@@ -275,18 +305,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		self.tabs.currentChanged.connect(self.tabs_changed_slot)
 
-		self.sig_new   .connect(self.new_slot)
 		self.sig_reset .connect(self.reset_slot)
-		self.sig_start .connect(self.exp[self.etype].start)
-		self.sig_pause .connect(self.exp[self.etype].pause)
-		self.sig_resume.connect(self.exp[self.etype].resume)
-		self.sig_stop  .connect(self.exp[self.etype].stop)
 
-		self.exp[self.etype].started.connect(self.started_slot)
-		self.exp[self.etype].paused .connect(self.paused_slot)
-		self.exp[self.etype].resumed.connect(self.resumed_slot)
-		self.exp[self.etype].stoped .connect(self.stoped_slot)
-		
+		e = self.exp[self.etype]
+		self.sig_start .connect(e.start)
+		self.sig_pause .connect(e.pause)
+		self.sig_resume.connect(e.resume)
+		self.sig_stop  .connect(e.stop)
+		e.started      .connect(self.started_slot)
+		e.paused       .connect(self.paused_slot)
+		e.resumed      .connect(self.resumed_slot)
+		e.stoped       .connect(self.stoped_slot)
+		e.dataChanged  .connect(self.dataChanged_slot)
+
 		# СИГНАЛЫ ДРАЙВЕРУ!!!
 		# self.sig_wl.connect(self.session.setWl_slot)
 		# self.sig_shutter.connect(self.session.setShutter_slot)
@@ -306,7 +337,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		sampleName = self.sample_edit.text()
 		self.sample_edit.setStyleSheet("background: red; color: white")
 		print(f"sample_edit_rejected_slot \"{sampleName}\"")
-	
+
 	def start_edit_new_slot(self):
 		startWl = float(self.start_edit.text())
 		self.exp[self.etype].startWl = startWl
@@ -428,18 +459,44 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	def tabs_changed_slot(self, index: int):
 		print(f"tabs_changed_slot \"{index}\"")
+
+		e = self.exp[self.etype]
+		self.sig_start .disconnect(e.start)
+		self.sig_pause .disconnect(e.pause)
+		self.sig_resume.disconnect(e.resume)
+		self.sig_stop  .disconnect(e.stop)
+		e.started      .disconnect(self.started_slot)
+		e.paused       .disconnect(self.paused_slot)
+		e.resumed      .disconnect(self.resumed_slot)
+		e.stoped       .disconnect(self.stoped_slot)
+		e.dataChanged  .disconnect(self.dataChanged_slot)
+
 		self.etype = index
+
+		e = self.exp[self.etype]
+		self.sig_start .connect(e.start)
+		self.sig_pause .connect(e.pause)
+		self.sig_resume.connect(e.resume)
+		self.sig_stop  .connect(e.stop)
+		e.started      .connect(self.started_slot)
+		e.paused       .connect(self.paused_slot)
+		e.resumed      .connect(self.resumed_slot)
+		e.stoped       .connect(self.stoped_slot)
+		e.dataChanged  .connect(self.dataChanged_slot)
+
 		self.updateExpView()
 		self.updateActiveView()
 		self.updateExpListView()
 
 	def start_button_slot(self):
-		print(f"start_button_slot \"{self.start_button.text()}\"")
 		e = self.exp[self.etype]
+		t = self.start_button.text()
+		print(f"start_button_slot \"{t}\" status = {e.status} sampleName = {e.sampleName}")
 		if len(e.sampleName) == 0: return
 		if   e.status == 0: e.status = 1; self.sig_start.emit()
 		elif e.status == 1: e.status = 2; self.sig_pause.emit()
 		elif e.status == 2: e.status = 1; self.sig_resume.emit()
+		print(f"end start_button_slot \"{t}\" status = {e.status} sampleName = {e.sampleName}")
 
 	def stop_button_slot(self):
 		print(f"stop_button_slot \"{self.stop_button.text()}\"")
@@ -447,38 +504,92 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		if   e.status == 0:               self.sig_reset.emit()
 		elif e.status == 1: e.status = 3; self.sig_stop.emit()
 		elif e.status == 2: e.status = 3; self.sig_stop.emit()
-		elif e.status == 3: e.status = 0; self.sig_new.emit()
 
-	@Slot(int)
-	def new_slot(self):
-		e = Experiment(self.etype)
-		e.fill(self.exp[self.etype])
-		self.exp[self.etype] = e
+	@Slot(QStandardItem)
+	def itemChanged_slot(self, item: QStandardItem):
+		i = item.row()
+		c = item.checkState() == Qt.Checked
+		l = self.expCheckedList[self.etype]
+		if c and (i not in l):
+			l.append(i)
+		elif i in l:
+			l.remove(i)
+		print(f"itemChanged_slot {i} checked {c}")
+
+	@Slot(QItemSelection, QItemSelection)
+	def selectionChanged_slot(self, s1: QItemSelection, s2: QItemSelection):
+		i = self.exp_list_view.selectionModel().selection().indexes()[0].row()
+		self.expSelectionList[self.etype] = i
+		e = self.exp[self.etype]
+		e1 = self.expList[self.etype][i]
+		print(f"selectionChanged_slot {i} status = {e.status} sampleName = {e.sampleName}")
+		if e.status == 0:
+			e.fill(e1)
+		elif e.status == 3:
+			self.exp[self.etype] = e1
+		e = self.exp[self.etype]
+		print(f"selectionChanged_slot {i} status = {e.status} sampleName = {e.sampleName}")
 		self.updateExpView()
 		self.updateActiveView()
 
 	@Slot(int)
 	def reset_slot(self):
+		print(f"reset_slot")
 		self.exp[self.etype].reset()
 		self.updateExpView()
 
 	@Slot(int)
 	def started_slot(self):
+		print(f"started_slot")
 		self.updateActiveView()
 
 	@Slot(int)
 	def paused_slot(self):
+		print(f"paused_slot")
 		self.updateActiveView()
 
 	@Slot(int)
 	def resumed_slot(self):
+		print(f"resumed_slot")
 		self.updateActiveView()
 
 	@Slot(int)
 	def stoped_slot(self):
-		self.expList[self.etype].append(self.exp[self.etype])
+		print(f"stoped_slot")
+		e = self.exp[self.etype]
+		self.sig_start .disconnect(e.start)
+		self.sig_pause .disconnect(e.pause)
+		self.sig_resume.disconnect(e.resume)
+		self.sig_stop  .disconnect(e.stop)
+		e.started      .disconnect(self.started_slot)
+		e.paused       .disconnect(self.paused_slot)
+		e.resumed      .disconnect(self.resumed_slot)
+		e.stoped       .disconnect(self.stoped_slot)
+		e.dataChanged  .disconnect(self.dataChanged_slot)
+		self.expList[self.etype].append(e)
+		self.expSelectionList[self.etype] = len(self.expList[self.etype])-1
+		e = Experiment(self.etype)
+		e.fill(self.exp[self.etype])
+		self.sig_start .connect(e.start)
+		self.sig_pause .connect(e.pause)
+		self.sig_resume.connect(e.resume)
+		self.sig_stop  .connect(e.stop)
+		e.started      .connect(self.started_slot)
+		e.paused       .connect(self.paused_slot)
+		e.resumed      .connect(self.resumed_slot)
+		e.stoped       .connect(self.stoped_slot)
+		e.dataChanged  .connect(self.dataChanged_slot)
+		self.exp[self.etype] = e
 		self.updateActiveView()
 		self.updateExpListView()
+
+	@Slot()
+	def dataChanged_slot(self):
+		print(f"dataChanged_slot")
+		e = self.exp[self.etype]
+		self.progress_bar.setValue(int(100*(e.currentWl-e.startWl)/(e.stopWl-e.startWl)))
+
+
 
 if __name__ == '__main__':
 	app = QApplication(sys.argv)
