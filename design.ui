@@ -483,7 +483,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QListView" name="curves_list"/>
+         <widget class="QListView" name="exp_list_view"/>
         </item>
        </layout>
       </widget>
@@ -503,6 +503,27 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
+ <tabstops>
+  <tabstop>tabs</tabstop>
+  <tabstop>sample_edit</tabstop>
+  <tabstop>start_edit</tabstop>
+  <tabstop>stop_edit</tabstop>
+  <tabstop>step_edit</tabstop>
+  <tabstop>delay_edit</tabstop>
+  <tabstop>channel1_radio</tabstop>
+  <tabstop>channel2_radio</tabstop>
+  <tabstop>voltage_check</tabstop>
+  <tabstop>voltage_edit</tabstop>
+  <tabstop>nplc_edit</tabstop>
+  <tabstop>average_check</tabstop>
+  <tabstop>average_edit</tabstop>
+  <tabstop>wl_edit</tabstop>
+  <tabstop>shutter_check</tabstop>
+  <tabstop>start_button</tabstop>
+  <tabstop>stop_button</tabstop>
+  <tabstop>exp_list_view</tabstop>
+  <tabstop>scrollArea</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

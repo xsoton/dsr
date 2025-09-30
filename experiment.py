@@ -1,14 +1,16 @@
-from PySide6.QtCore import QObject, QReadWriteLock, Signal, Slot
+from typing import Self
+from PySide6.QtCore import QObject, QReadWriteLock, Signal, Slot, QDateTime
 
-class Experiment():
+class Experiment(QObject):
+	type: int = 0 # 0 - Si, 1 - InGaAs, 2 - Sample
 	status: int = 0 # 0 - idle, 1 - started, 2 - paused, 3 - ended
+	dateTime: str = ""
+	currentWl: float = 300
 	
 	sampleName: str = ""
-	dateTime: str = ""
 	startWl: float = 300.0
 	stopWl: float = 2000.0
 	stepWl: float = 5.0
-	wl: float = 300
 	delay: float = 0.0
 	channel: int = 1
 	voltageFlag: bool = False
@@ -17,23 +19,19 @@ class Experiment():
 	averageFlag: bool = False
 	average: int = 1
 
-	def __init__(self):
-		self.lock = QReadWriteLock()
-
-	def rlock(self):
-		self.lock.lockForRead()
-
-	def wlock(self):
-		self.lock.lockForWrite()
-
-	def unlock(self):
-		self.lock.unlock()
-
-class Data():
 	data = []
 
-	def __init__(self):
+	started     = Signal()
+	paused      = Signal()
+	resumed     = Signal()
+	stoped      = Signal()
+	dataChanged = Signal()
+
+	def __init__(self, etype: int, parent=None):
+		super(Experiment, self).__init__(parent)
+		self.type = etype
 		self.lock = QReadWriteLock()
+		self.reset()
 
 	def rlock(self):
 		self.lock.lockForRead()
@@ -44,99 +42,85 @@ class Data():
 	def unlock(self):
 		self.lock.unlock()
 
-	def addPoint(self, x, y):
-		self.data.append([x, y])
+	def fill(self, e: Self):
+		self.sampleName  = e.sampleName
+		self.startWl     = e.startWl
+		self.stopWl      = e.stopWl
+		self.stepWl      = e.stepWl
+		self.delay       = e.delay
+		self.channel     = e.channel
+		self.voltageFlag = e.voltageFlag
+		self.voltage     = e.voltage
+		self.nplc        = e.nplc
+		self.averageFlag = e.averageFlag
+		self.average     = e.average
 
+	def reset(self):
+		if self.type == 0:
+			self.sampleName  = "Si"
+			self.startWl     = 300
+			self.stopWl      = 1100
+			self.stepWl      = 5
+			self.delay       = 0
+			self.channel     = 2
+			self.voltageFlag = False
+			self.voltage     = 0
+			self.nplc        = 1
+			self.averageFlag = False
+			self.average     = 1
+		elif self.type == 1:
+			self.sampleName  = "InGaAs"
+			self.startWl     = 900
+			self.stopWl      = 1700
+			self.stepWl      = 10
+			self.delay       = 0
+			self.channel     = 2
+			self.voltageFlag = False
+			self.voltage     = 0
+			self.nplc        = 1
+			self.averageFlag = False
+			self.average     = 1
+		elif self.type == 2:
+			self.sampleName  = ""
+			self.startWl     = 300
+			self.stopWl      = 2000
+			self.stepWl      = 5
+			self.delay       = 0
+			self.channel     = 1
+			self.voltageFlag = False
+			self.voltage     = 0
+			self.nplc        = 1
+			self.averageFlag = False
+			self.average     = 1
 
-class Session(QObject):
-	ids = [-1, -1, -1]
-	exp = [[], [], []]
-	dat = [[], [], []]
+	@Slot()
+	def start(self):
+		self.status = 1
+		self.dateTime = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
+		# START EXPERIMENT
+		self.started.emit()
 
-	start  = Signal(Experiment)
-	pause  = Signal()
-	resume = Signal()
-	stop   = Signal()
+	@Slot()
+	def pause(self):
+		self.status = 2
+		# PAUSE EXPERIMENT
+		self.paused.emit()
 
-	newExpStarted = Signal(int)
-	newExpPaused  = Signal(int)
-	newExpResumed = Signal(int)
-	newExpStoped  = Signal(int)
+	@Slot()
+	def resume(self):
+		self.status = 1
+		# RESUME EXPERIMENT
+		self.resumed.emit()
 
-	def __init__(self, parent=None):
-		super(Session, self).__init__(parent)
-		self.lock = QReadWriteLock()
+	@Slot()
+	def stop(self):
+		self.status = 3
+		# STOP EXPERIMENT
+		self.stoped.emit()
 
-	def rlock(self):
-		self.lock.lockForRead()
-
-	def wlock(self):
-		self.lock.lockForWrite()
-
-	def unlock(self):
-		self.lock.unlock()
-
-	def new_exp(self, etype: int):
-		print("new_exp")
-		if etype < 0 or etype > 2:
-			return -1
+	@Slot(float, float)
+	def dataAdd(self, wl: float, current: float):
 		self.wlock()
-		new_id = len(self.exp[etype])
-		e = Experiment()
-		d = Data()
-		e.wl = e.startWl
-		self.ids[etype] = new_id
-		self.exp[etype].append(e)
-		self.dat[etype].append(d)
+		self.data.append([wl, current])
 		self.unlock()
-		return new_id
-
-	def updateFromExp(self, etype: int, e: Experiment):
-		self.exp[etype][self.ids[etype]].status      = e.status
-		self.exp[etype][self.ids[etype]].sampleName  = e.sampleName
-		self.exp[etype][self.ids[etype]].startWl     = e.startWl
-		self.exp[etype][self.ids[etype]].stopWl      = e.stopWl
-		self.exp[etype][self.ids[etype]].stepWl      = e.stepWl
-		self.exp[etype][self.ids[etype]].wl          = e.wl
-		self.exp[etype][self.ids[etype]].delay       = e.delay
-		self.exp[etype][self.ids[etype]].channel     = e.channel
-		self.exp[etype][self.ids[etype]].voltageFlag = e.voltageFlag
-		self.exp[etype][self.ids[etype]].voltage     = e.voltage
-		self.exp[etype][self.ids[etype]].nplc        = e.nplc
-		self.exp[etype][self.ids[etype]].averageFlag = e.averageFlag
-		self.exp[etype][self.ids[etype]].average     = e.average
-
-	@Slot(int, Experiment)
-	def start_slot(self, etype: int, e: Experiment):
-		print("start_slot")
-		self.new_exp(etype)
-		self.updateFromExp(etype, e)
-		e = self.exp[etype][self.ids[etype]]
-		e.status = 1
-		e.dateTime = "???" # GENERATE date
-		self.start.emit(e)
-		self.newExpStarted.emit(e)
-
-	@Slot(int)
-	def pause_slot(self, etype: int):
-		print("pause_slot")
-		e = self.exp[etype][self.ids[etype]]
-		e.status = 2
-		self.pause.emit()
-		self.newExpPaused.emit(e)
-
-	@Slot(int)
-	def resume_slot(self, etype: int):
-		print("resume_slot")
-		e = self.exp[etype][self.ids[etype]]
-		e.status = 1
-		self.resume.emit()
-		self.newExpResumed.emit(e)
-
-	@Slot(int)
-	def stop_slot(self, etype: int):
-		print("stop_slot")
-		e = self.exp[etype][self.ids[etype]]
-		e.status = 3
-		self.stop.emit()
-		self.newExpStoped.emit(e)
+		self.dataChanged.emit()

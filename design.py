@@ -285,10 +285,10 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_2.addWidget(self.frame_control)
 
-        self.curves_list = QListView(self.scrollAreaWidgetContents)
-        self.curves_list.setObjectName(u"curves_list")
+        self.exp_list_view = QListView(self.scrollAreaWidgetContents)
+        self.exp_list_view.setObjectName(u"exp_list_view")
 
-        self.verticalLayout_2.addWidget(self.curves_list)
+        self.verticalLayout_2.addWidget(self.exp_list_view)
 
         self.scrollArea.setWidget(self.scrollAreaWidgetContents)
 
@@ -302,6 +302,24 @@ class Ui_MainWindow(object):
         self.statusbar = QStatusBar(MainWindow)
         self.statusbar.setObjectName(u"statusbar")
         MainWindow.setStatusBar(self.statusbar)
+        QWidget.setTabOrder(self.tabs, self.sample_edit)
+        QWidget.setTabOrder(self.sample_edit, self.start_edit)
+        QWidget.setTabOrder(self.start_edit, self.stop_edit)
+        QWidget.setTabOrder(self.stop_edit, self.step_edit)
+        QWidget.setTabOrder(self.step_edit, self.delay_edit)
+        QWidget.setTabOrder(self.delay_edit, self.channel1_radio)
+        QWidget.setTabOrder(self.channel1_radio, self.channel2_radio)
+        QWidget.setTabOrder(self.channel2_radio, self.voltage_check)
+        QWidget.setTabOrder(self.voltage_check, self.voltage_edit)
+        QWidget.setTabOrder(self.voltage_edit, self.nplc_edit)
+        QWidget.setTabOrder(self.nplc_edit, self.average_check)
+        QWidget.setTabOrder(self.average_check, self.average_edit)
+        QWidget.setTabOrder(self.average_edit, self.wl_edit)
+        QWidget.setTabOrder(self.wl_edit, self.shutter_check)
+        QWidget.setTabOrder(self.shutter_check, self.start_button)
+        QWidget.setTabOrder(self.start_button, self.stop_button)
+        QWidget.setTabOrder(self.stop_button, self.exp_list_view)
+        QWidget.setTabOrder(self.exp_list_view, self.scrollArea)
 
         self.retranslateUi(MainWindow)
 

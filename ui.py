@@ -12,7 +12,7 @@ from PySide6.QtWidgets import *
 import sys
 
 from design import Ui_MainWindow
-from experiment import Experiment, Data, Session
+from experiment import Experiment
 # from filenames import *
 
 # class PlotWidget(pg.PlotWidget):
@@ -73,44 +73,35 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	# plot_widget: PlotWidget
 	etype: int = 0
 
-	expStd = []
-	exp    = []
+	exp = []
+	expList = [[], [], []]
 
 	wl      = 550
 	shutter = False
 
-	curvesListModels = []
+	expListModels = []
 
-	new    = Signal(int)
-	reset  = Signal(int)
-	start  = Signal(int, Experiment)
-	pause  = Signal(int)
-	resume = Signal(int)
-	stop   = Signal(int)
+	sig_new    = Signal()
+	sig_reset  = Signal()
+	sig_start  = Signal()
+	sig_pause  = Signal()
+	sig_resume = Signal()
+	sig_stop   = Signal()
 
-	setWl          = Signal(float)
-	setShutter     = Signal(bool)
+	sig_wl      = Signal(float)
+	sig_shutter = Signal(bool)
 
-	def __init__(self, session: Session, parent=None):
+	def __init__(self, parent=None):
 		super(MainWindow, self).__init__(parent)
 		self.setupUi(self)
+		self.setWindowTitle("DSR600")
+		self.move(20, 20)
 		self.centralwidget.resize(200, 200)
 
 		# self.plot_widget = PlotWidget()
 		# self.main_splitter.insertWidget(0, self.plot_widget)
 
-		self.setWindowTitle("DSR600")
-		self.move(20, 20)
-
-		# palette = QGuiApplication.palette()
-		# palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, QColor(120, 120, 120))
-		# palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button,     QColor(240, 240, 240))
-		# palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text,       QColor(120, 120, 120))
-		# palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(120, 120, 120))
-		# palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base,       QColor(240, 240, 240))
-		# self.setPalette(palette)
-
-		# <filters>
+		# initialize filters
 		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
 		self.sample_edit.setValidator(QRegularExpressionValidator(re, self))
 
@@ -139,75 +130,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		v = QIntValidator(1, 100, self)
 		v.setLocale(QLocale(QLocale.C))
 		self.average_edit.setValidator(v)
-		# </filters>
 
+		# starting experiment type
 		self.etype = 0
 
-		# fill STD experiments' parameters
-		e = Experiment()
-		e.sampleName = "Si"
-		e.startWl = 300
-		e.stopWl = 1100
-		e.stepWl = 5
-		e.wl = 300
-		e.channel = 2
-		self.expStd.append(e)
-		
-		e = Experiment()
-		e.sampleName = "InGaAs"
-		e.startWl = 900
-		e.stopWl = 1700
-		e.stepWl = 10
-		e.wl = 900
-		e.channel = 2
-		self.expStd.append(e)
-		
-		e = Experiment()
-		e.sampleName = ""
-		e.startWl = 300
-		e.stopWl = 2000
-		e.stepWl = 5
-		e.wl = 300
-		e.channel = 1
-		self.expStd.append(e)
-		
-		# copy current experiments' parameters from STD
-		self.exp.append(Experiment())
-		self.exp.append(Experiment())
-		self.exp.append(Experiment())
-		self.updateFromStd(0)
-		self.updateFromStd(1)
-		self.updateFromStd(2)
+		self.wl_edit.setText(f"{self.wl}")
+		self.shutter_check.setChecked(self.shutter)
 
-		self.session = session
-
+		# add standard experiments
+		self.exp.append(Experiment(0))
+		self.exp.append(Experiment(1))
+		self.exp.append(Experiment(2))
 		self.updateExpView()
+		self.updateActiveView()
 
-		self.curvesListModels.append(QStandardItemModel())
-		self.curvesListModels.append(QStandardItemModel())
-		self.curvesListModels.append(QStandardItemModel())
-		self.curves_list.setModel(self.curvesListModels[self.etype])
-		self.updateCurvesList()
+		self.expListModels.append(QStandardItemModel())
+		self.expListModels.append(QStandardItemModel())
+		self.expListModels.append(QStandardItemModel())
+		self.updateExpListView()
 
 		self.link_signals()
-
-	def updateFromStd(self, etype: int):
-		self.updateFromExp(etype, self.expStd[etype])
-
-	def updateFromExp(self, etype: int, exp: Experiment):
-		self.exp[etype].status      = exp.status
-		self.exp[etype].sampleName  = exp.sampleName
-		self.exp[etype].startWl     = exp.startWl
-		self.exp[etype].stopWl      = exp.stopWl
-		self.exp[etype].stepWl      = exp.stepWl
-		self.exp[etype].wl          = exp.wl
-		self.exp[etype].delay       = exp.delay
-		self.exp[etype].channel     = exp.channel
-		self.exp[etype].voltageFlag = exp.voltageFlag
-		self.exp[etype].voltage     = exp.voltage
-		self.exp[etype].nplc        = exp.nplc
-		self.exp[etype].averageFlag = exp.averageFlag
-		self.exp[etype].average     = exp.average
 
 	def updateExpView(self):
 		print("updateExpView")
@@ -229,10 +171,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.nplc_edit.setText(f"{e.nplc}")
 		self.average_check.setChecked(e.averageFlag)
 		self.average_edit.setText(f"{e.average}")
-		self.progress_bar.setValue(int(100*(e.wl-e.startWl)/(e.stopWl-e.startWl)))
+		self.progress_bar.setValue(int(100*(e.currentWl-e.startWl)/(e.stopWl-e.startWl)))
+
+	def updateActiveView(self):
+		print("updateActiveView")
 		
-		self.wl_edit.setText(f"{self.wl}")
-		self.shutter_check.setChecked(self.shutter)
+		e = self.exp[self.etype]
 
 		# 0 - idle, 1 - started, 2 - paused, 3 - ended
 		if e.status == 0:
@@ -272,39 +216,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.frame_mono.setDisabled(True)
 			self.tabs.tabBar().setDisabled(False)
 
+	def updateExpListView(self):
+		print("updateExpListView")
 
-	# 3 models for every list!!!
-	def updateCurvesList(self):
-		print("updateCurvesList")
+		l = self.expList[self.etype]
 
-		st = ["new", "running", "paused", "ended"]
-
-		self.session.rlock()
-		ids = self.session.ids
-		exp = self.session.exp
-		self.session.unlock()
-
-		model = self.curvesListModels[self.etype]
-
+		model = self.expListModels[self.etype]
 		model.clear()
 		parentItem = model.invisibleRootItem()
 
-		it = None
-
-		t = self.etype
-		for i in range(len(exp[t])):
-			e = exp[t][i]
+		for i in range(len(l)):
+			e = l[i]
+			
 			e.rlock()
 			status = e.status
 			sampleName = e.sampleName
 			e.unlock()
 
-			item = QStandardItem(f"{i} : {sampleName} - {st[status]}")
+			item = QStandardItem(f"{i} : {sampleName}")
 			item.setCheckable(True)
 			item.setSelectable(True)
 			parentItem.appendRow(item)
 
-		self.curves_list.setModel(model)
+		self.exp_list_view.setModel(model)
 
 	def link_signals(self):
 		print("link_signals")
@@ -326,36 +260,36 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.shutter_check.clicked.connect(self.shutter_check_slot)
 
 		self.start_button.released.connect(self.start_button_slot)
-		self.stop_button.released.connect(self.stop_button_slot)
+		self.stop_button .released.connect(self.stop_button_slot)
 
-		self.sample_edit.textEdited.connect(self.sample_edit_edited_slot)
-		self.start_edit.textEdited.connect(self.start_edit_edited_slot)
-		self.stop_edit.textEdited.connect(self.stop_edit_edited_slot)
-		self.step_edit.textEdited.connect(self.step_edit_edited_slot)
-		self.delay_edit.textEdited.connect(self.delay_edit_edited_slot)
+		self.sample_edit .textEdited.connect(self.sample_edit_edited_slot)
+		self.start_edit  .textEdited.connect(self.start_edit_edited_slot)
+		self.stop_edit   .textEdited.connect(self.stop_edit_edited_slot)
+		self.step_edit   .textEdited.connect(self.step_edit_edited_slot)
+		self.delay_edit  .textEdited.connect(self.delay_edit_edited_slot)
 		self.voltage_edit.textEdited.connect(self.voltage_edit_edited_slot)
-		self.nplc_edit.textEdited.connect(self.nplc_edit_edited_slot)
+		self.nplc_edit   .textEdited.connect(self.nplc_edit_edited_slot)
 		self.average_edit.textEdited.connect(self.average_edit_edited_slot)
 
 		self.wl_edit.textEdited.connect(self.wl_edit_edited_slot)
 
 		self.tabs.currentChanged.connect(self.tabs_changed_slot)
 
-		self.new.connect(self.new_slot)
-		self.reset.connect(self.reset_slot)
-		self.start.connect(self.session.start_slot)
-		self.pause.connect(self.session.pause_slot)
-		self.resume.connect(self.session.resume_slot)
-		self.stop.connect(self.session.stop_slot)
+		self.sig_new   .connect(self.new_slot)
+		self.sig_reset .connect(self.reset_slot)
+		self.sig_start .connect(self.exp[self.etype].start)
+		self.sig_pause .connect(self.exp[self.etype].pause)
+		self.sig_resume.connect(self.exp[self.etype].resume)
+		self.sig_stop  .connect(self.exp[self.etype].stop)
 
-		self.session.newExpStarted.connect(self.newExpStarted_slot)
-		self.session.newExpPaused.connect(self.newExpPaused_slot)
-		self.session.newExpResumed.connect(self.newExpResumed_slot)
-		self.session.newExpStoped.connect(self.newExpStoped_slot)
+		self.exp[self.etype].started.connect(self.started_slot)
+		self.exp[self.etype].paused .connect(self.paused_slot)
+		self.exp[self.etype].resumed.connect(self.resumed_slot)
+		self.exp[self.etype].stoped .connect(self.stoped_slot)
 		
 		# СИГНАЛЫ ДРАЙВЕРУ!!!
-		# self.setWl.connect(self.session.setWl_slot)
-		# self.setShutter.connect(self.session.setShutter_slot)
+		# self.sig_wl.connect(self.session.setWl_slot)
+		# self.sig_shutter.connect(self.session.setShutter_slot)
 
 		# БИНД СЛОТА!!!! setWl_done_slot
 
@@ -475,7 +409,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.wl = wl
 		self.wl_edit.setStyleSheet("")
 		print(f"wl_edit_slot \"{wl}\"")
-		self.setWl.emit(wl)
+		self.sig_wl.emit(wl)
 	def wl_edit_edited_slot(self, text):
 		wl = float(text)
 		if self.wl != wl:
@@ -489,67 +423,65 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def shutter_check_slot(self):
 		shutter = self.shutter_check.isChecked()
 		self.shutter = shutter
-		print(f"shutter_check_slot \"{shutter}\"")
-		self.setShutter.emit(shutter)
+		print(f"shutter_ check_slot \"{shutter}\"")
+		self.sig_shutter.emit(shutter)
 
 	def tabs_changed_slot(self, index: int):
 		print(f"tabs_changed_slot \"{index}\"")
 		self.etype = index
 		self.updateExpView()
-		self.updateCurvesList()
+		self.updateActiveView()
+		self.updateExpListView()
 
 	def start_button_slot(self):
 		print(f"start_button_slot \"{self.start_button.text()}\"")
 		e = self.exp[self.etype]
 		if len(e.sampleName) == 0: return
-		if   e.status == 0: e.status = 1; self.start.emit(self.etype, e)
-		elif e.status == 1: e.status = 2; self.pause.emit(self.etype)
-		elif e.status == 2: e.status = 1; self.resume.emit(self.etype)
+		if   e.status == 0: e.status = 1; self.sig_start.emit()
+		elif e.status == 1: e.status = 2; self.sig_pause.emit()
+		elif e.status == 2: e.status = 1; self.sig_resume.emit()
 
 	def stop_button_slot(self):
 		print(f"stop_button_slot \"{self.stop_button.text()}\"")
 		e = self.exp[self.etype]
-		if   e.status == 0:               self.reset.emit(self.etype)
-		if   e.status == 1: e.status = 3; self.stop.emit(self.etype)
-		elif e.status == 2: e.status = 3; self.stop.emit(self.etype)
-		elif e.status == 3: e.status = 0; self.new.emit(self.etype)
+		if   e.status == 0:               self.sig_reset.emit()
+		elif e.status == 1: e.status = 3; self.sig_stop.emit()
+		elif e.status == 2: e.status = 3; self.sig_stop.emit()
+		elif e.status == 3: e.status = 0; self.sig_new.emit()
 
 	@Slot(int)
-	def new_slot(self, etype: int):
+	def new_slot(self):
+		e = Experiment(self.etype)
+		e.fill(self.exp[self.etype])
+		self.exp[self.etype] = e
 		self.updateExpView()
-		self.updateCurvesList()
+		self.updateActiveView()
 
 	@Slot(int)
-	def reset_slot(self, etype: int):
-		self.updateFromStd(etype)
+	def reset_slot(self):
+		self.exp[self.etype].reset()
 		self.updateExpView()
-		self.updateCurvesList()
 
 	@Slot(int)
-	def newExpStarted_slot(self, etype: int):
-		self.updateExpView()
-		self.updateCurvesList()
+	def started_slot(self):
+		self.updateActiveView()
 
 	@Slot(int)
-	def newExpPaused_slot(self, etype: int):
-		self.updateExpView()
-		self.updateCurvesList()
+	def paused_slot(self):
+		self.updateActiveView()
 
 	@Slot(int)
-	def newExpResumed_slot(self, etype: int):
-		self.updateExpView()
-		self.updateCurvesList()
+	def resumed_slot(self):
+		self.updateActiveView()
 
 	@Slot(int)
-	def newExpStoped_slot(self, etype: int):
-		self.updateExpView()
-		self.updateCurvesList()
-
-
+	def stoped_slot(self):
+		self.expList[self.etype].append(self.exp[self.etype])
+		self.updateActiveView()
+		self.updateExpListView()
 
 if __name__ == '__main__':
 	app = QApplication(sys.argv)
-	session = Session()
-	window = MainWindow(session)
+	window = MainWindow()
 	window.show()
 	app.exec()
