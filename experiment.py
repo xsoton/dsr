@@ -20,8 +20,6 @@ class Experiment(QObject):
 	averageFlag: bool = False
 	average: int = 1
 
-	data = []
-
 	started     = Signal()
 	paused      = Signal()
 	resumed     = Signal()
@@ -34,6 +32,10 @@ class Experiment(QObject):
 	def __init__(self, etype: int, parent=None):
 		super(Experiment, self).__init__(parent)
 		self.type = etype
+		self.status = 0
+		self.dateTime = ""
+		self.data = [[], []]
+
 		self.lock = QReadWriteLock()
 		self.reset()
 		# test!!!
@@ -63,6 +65,7 @@ class Experiment(QObject):
 		self.averageFlag = e.averageFlag
 		self.average     = e.average
 		self.currentWl   = e.startWl
+		self.steps       = 0
 
 	def reset(self):
 		if self.type == 0:
@@ -70,47 +73,34 @@ class Experiment(QObject):
 			self.startWl     = 300
 			self.stopWl      = 1100
 			self.stepWl      = 5
-			self.delay       = 0
 			self.channel     = 2
-			self.voltageFlag = False
-			self.voltage     = 0
-			self.nplc        = 1
-			self.averageFlag = False
-			self.average     = 1
-			self.currentWl   = self.startWl
 		elif self.type == 1:
 			self.sampleName  = "InGaAs"
 			self.startWl     = 900
 			self.stopWl      = 1700
 			self.stepWl      = 10
-			self.delay       = 0
 			self.channel     = 2
-			self.voltageFlag = False
-			self.voltage     = 0
-			self.nplc        = 1
-			self.averageFlag = False
-			self.average     = 1
-			self.currentWl   = self.startWl
 		elif self.type == 2:
 			self.sampleName  = ""
 			self.startWl     = 300
 			self.stopWl      = 2000
 			self.stepWl      = 5
-			self.delay       = 0
 			self.channel     = 1
-			self.voltageFlag = False
-			self.voltage     = 0
-			self.nplc        = 1
-			self.averageFlag = False
-			self.average     = 1
-			self.currentWl   = self.startWl
+		self.delay       = 0
+		self.voltageFlag = False
+		self.voltage     = 0
+		self.nplc        = 1
+		self.averageFlag = False
+		self.average     = 1
+		self.currentWl   = self.startWl
+		self.steps       = 0
 
 	@Slot()
 	def start(self):
 		self.status = 1
 		self.dateTime = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
 		# test!!!
-		self.timer.start(1000)
+		self.timer.start(100)
 		# end test!!!
 		self.started.emit()
 
@@ -126,7 +116,7 @@ class Experiment(QObject):
 	def resume(self):
 		self.status = 1
 		# test!!!
-		self.timer.start(1000)
+		self.timer.start(100)
 		# test!!!
 		self.resumed.emit()
 
@@ -141,7 +131,8 @@ class Experiment(QObject):
 	@Slot(float, float)
 	def dataAdd(self, wl: float, current: float):
 		self.wlock()
-		self.data.append([wl, current])
+		self.data[0].append(wl)
+		self.data[1].append(current)
 		self.unlock()
 		self.currentWl = wl
 		self.dataChanged.emit()
@@ -154,16 +145,13 @@ class Experiment(QObject):
 			return
 		if self.steps == 0:
 			self.currentWl = self.startWl
-		if self.startWl > self.stopWl:
-			d = -1
-		else:
-			d = 1
-		wl = self.currentWl + d * self.stepWl
+		d = -1 if self.startWl > self.stopWl else 1
+		wl = self.startWl + d * self.stepWl * self.steps
 		if (d == 1 and wl > self.stopWl) or (d == -1 and wl < self.stopWl):
 			self.stop()
 			return
 		else:
 			self.currentWl = wl
 			self.steps = self.steps + 1
-		I = 1e-9 * (wl-self.startWl)/(self.stopWl-self.startWl)
+		I = 1e-9 * (self.stopWl-wl) * (wl-self.startWl)/(self.stopWl-self.startWl)**2
 		self.dataGenerated.emit(wl, I)

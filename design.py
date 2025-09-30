@@ -48,15 +48,6 @@ class Ui_MainWindow(object):
         self.tabs.setDocumentMode(False)
         self.tabs.setTabsClosable(False)
         self.tabs.setMovable(False)
-        self.tab_si = QWidget()
-        self.tab_si.setObjectName(u"tab_si")
-        self.tabs.addTab(self.tab_si, "")
-        self.tab_ingaas = QWidget()
-        self.tab_ingaas.setObjectName(u"tab_ingaas")
-        self.tabs.addTab(self.tab_ingaas, "")
-        self.tab_sample = QWidget()
-        self.tab_sample.setObjectName(u"tab_sample")
-        self.tabs.addTab(self.tab_sample, "")
 
         self.horizontalLayout.addWidget(self.tabs)
 
@@ -323,7 +314,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.tabs.setCurrentIndex(0)
+        self.tabs.setCurrentIndex(-1)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -331,9 +322,6 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
-        self.tabs.setTabText(self.tabs.indexOf(self.tab_si), QCoreApplication.translate("MainWindow", u"Si", None))
-        self.tabs.setTabText(self.tabs.indexOf(self.tab_ingaas), QCoreApplication.translate("MainWindow", u"InGaAs", None))
-        self.tabs.setTabText(self.tabs.indexOf(self.tab_sample), QCoreApplication.translate("MainWindow", u"Sample", None))
         self.start_edit.setText(QCoreApplication.translate("MainWindow", u"300", None))
         self.start_edit.setPlaceholderText(QCoreApplication.translate("MainWindow", u"from, nm", None))
         self.step_edit.setText(QCoreApplication.translate("MainWindow", u"5", None))

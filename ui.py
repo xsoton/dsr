@@ -8,65 +8,78 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import *
 
 # import numpy as np
-# import pyqtgraph as pg
+import pyqtgraph as pg
 import sys
 
 from design import Ui_MainWindow
 from experiment import Experiment
 # from filenames import *
 
-# class PlotWidget(pg.PlotWidget):
-# 	def __init__(self):
-# 		super(PlotWidget, self).__init__()
-# 		self.setBackground("w")
-# 		self.setMinimumSize(700, 500)
-# 		styles = {"color": "black", "font-size": "16px", "font": "Calibri"}
-# 		#self.setTitle("vac", color="b", size="20pt")
-# 		self.setLabel("left", "Current, A / Bias, V", **styles)
-# 		self.setLabel("bottom", "Time, S", **styles)
-# 		self.addLegend()
-# 		self.showGrid(x=True, y=True)
-# 		self.plotItem.enableAutoRange(axis=pg.ViewBox.YAxis)
-# 		self.zero_axis_pen = pg.mkPen(color='k', width=1)
-# 		self.v_line = pg.InfiniteLine(pos=0, angle=0, pen=self.zero_axis_pen)
-# 		self.h_line = pg.InfiniteLine(pos=0, angle=90, pen=self.zero_axis_pen)
-# 		self.addItem(self.v_line)
-# 		self.addItem(self.h_line)
+class PlotWidget(pg.PlotWidget):
+	color_list = [
+		QColor("black"),
+		QColor("red"),
+		QColor("green"),
+		QColor("blue"),
+		QColor(204, 204, 0),
+		QColor(255, 0, 127),
+		QColor(0, 204, 204),
+		QColor(255, 128, 0)]
 
-# 		self.viewbox_2 = pg.ViewBox()
-# 		self.plotItem.showAxis('right')
-# 		self.plotItem.scene().addItem(self.viewbox_2)
-# 		self.plotItem.getAxis('right').linkToView(self.viewbox_2)
-# 		self.viewbox_2.setXLink(self.plotItem)
-# 		self.plotItem.getAxis('right').setLabel('Temperature, C', **styles)
-# 		self.updateViews()
-# 		self.plotItem.vb.sigResized.connect(self.updateViews)
+	def __init__(self):
+		super(PlotWidget, self).__init__()
+		self.setBackground("w")
+		self.setMinimumSize(700, 500)
+		styles = {"color": "black", "font-size": "16px", "font": "Calibri"}
+		#self.setTitle("vac", color="b", size="20pt")
+		self.setLabel("left", "Current, A", **styles)
+		self.setLabel("bottom", "Wavelength, nm", **styles)
+		self.addLegend()
+		self.showGrid(x=True, y=True)
+		# self.setXRange(300, 2000)
+		# self.setYRange(0, 1)
+		self.getPlotItem().enableAutoRange(axis=pg.ViewBox.XAxis)
+		self.getPlotItem().enableAutoRange(axis=pg.ViewBox.YAxis)
+		self.zero_axis_pen = pg.mkPen(color="black", width=1)
+		self.v_line = pg.InfiniteLine(pos=0, angle=0, pen=self.zero_axis_pen)
+		self.h_line = pg.InfiniteLine(pos=0, angle=90, pen=self.zero_axis_pen)
+		self.addItem(self.v_line)
+		self.addItem(self.h_line)
 
-# 	## Handle view resizing 
-# 	def updateViews(self):
-# 		## view has resized; update auxiliary views to match
-# 		self.viewbox_2.setGeometry(self.plotItem.vb.sceneBoundingRect())
-		
-# 		## need to re-update linked axes since this was called
-# 		## incorrectly while views had different shapes.
-# 		## (probably this should be handled in ViewBox.resizeEvent)
-# 		self.viewbox_2.linkedViewChanged(self.plotItem.vb, self.viewbox_2.XAxis)
+		self.items = []
+		self.color_index = 0
 
-# 	def scatter(self, x, y, color, symbol, size, label=" "):
-# 		pen = pg.mkPen(color)
-# 		brush = pg.mkBrush(color)
-# 		return self.plot(x, y, pen=None, symbol=symbol, symbolSize=size, symbolPen=pen, symbolBrush=brush, name=label)
+	def new_curve(self):
+		color=self.color_list[self.color_index]
+		self.color_index = self.color_index + 1
+		if self.color_index >= len(self.color_list):
+			self.color_list = 0
+		pen = pg.mkPen(color=color, width=1)
+		item = pg.PlotCurveItem(pen=pen)
+		item.setPen(pen)
+		self.items.append(item)
+		self.addItem(item)
 
-# 	def scatter_vb2(self, x, y, color, symbol, size, label=" "):
-# 		pen = pg.mkPen(color)
-# 		brush = pg.mkBrush(color)
-# 		line = pg.PlotDataItem(x, y, pen=None, symbol=symbol, symbolSize=size, symbolPen=pen, symbolBrush=brush, name=label)
-# 		self.viewbox_2.addItem(line)
-# 		self.plot([], [], pen=None, symbol=symbol, symbolSize=size, symbolPen=pen, symbolBrush=brush, name=label)
-# 		return line
+	# def plot_line(self, x, y, color=QColor("red"), label=" "):
+	# 	pen = pg.mkPen(color=color, width=1)
+	# 	self.data_line = self.plot(x, y, pen=pen, name=label)
 
-# 	def plotting(self, x, y, color, style=Qt.SolidLine, label=" "):
-# 		return self.plot(x, y, pen=pg.mkPen(color=color, width=2, style=style), name=label)
+	def updateData(self, x, y):
+		self.items[-1].setData(x, y)
+
+	def show(self, i):
+		self.items[i].show()
+
+	def showAll(self):
+		for item in self.items:
+			item.show()
+
+	def hide(self, i):
+		self.items[i].hide()
+
+	def hideAll(self):
+		for item in self.items:
+			item.hide()
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -84,6 +97,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	expSelectionList = []
 	expCheckedList = [[], [], []]
 
+	plotWidgets = []
+
 	sig_new    = Signal()
 	sig_reset  = Signal()
 	sig_start  = Signal()
@@ -100,6 +115,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.setWindowTitle("DSR600")
 		self.move(20, 20)
 		self.centralwidget.resize(200, 200)
+
+		self.plotWidgets.append(PlotWidget())
+		self.plotWidgets.append(PlotWidget())
+		self.plotWidgets.append(PlotWidget())
+		self.tabs.addTab(self.plotWidgets[0], "Si")
+		self.tabs.addTab(self.plotWidgets[1], "InGaAs")
+		self.tabs.addTab(self.plotWidgets[2], "Sample")
+		# self.plotWidgets[0].plot_line([], [])
+		# self.plotWidgets[1].plot_line([], [])
+		# self.plotWidgets[2].plot_line([], [])
 
 		# self.plot_widget = PlotWidget()
 		# self.main_splitter.insertWidget(0, self.plot_widget)
@@ -244,6 +269,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		model.itemChanged.disconnect(self.itemChanged_slot)
 		model.clear()
 		parentItem = model.invisibleRootItem()
+		# self.plotWidgets[self.etype].hideAll()
 
 		for i in range(len(l)):
 			e = l[i]
@@ -262,6 +288,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 				index = item.index()
 			if i in self.expCheckedList[self.etype]:
 				item.setCheckState(Qt.Checked)
+				# self.plotWidgets[self.etype].show(i)
 
 		model.itemChanged.connect(self.itemChanged_slot)
 
@@ -510,10 +537,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		i = item.row()
 		c = item.checkState() == Qt.Checked
 		l = self.expCheckedList[self.etype]
+		p = self.plotWidgets[self.etype]
 		if c and (i not in l):
 			l.append(i)
+			p.show(i)
 		elif i in l:
 			l.remove(i)
+			p.hide(i)
 		print(f"itemChanged_slot {i} checked {c}")
 
 	@Slot(QItemSelection, QItemSelection)
@@ -522,15 +552,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.expSelectionList[self.etype] = i
 		e = self.exp[self.etype]
 		e1 = self.expList[self.etype][i]
-		print(f"selectionChanged_slot {i} status = {e.status} sampleName = {e.sampleName}")
+		print(f"selectionChanged_slot {i}")
 		if e.status == 0:
 			e.fill(e1)
 		elif e.status == 3:
 			self.exp[self.etype] = e1
-		e = self.exp[self.etype]
-		print(f"selectionChanged_slot {i} status = {e.status} sampleName = {e.sampleName}")
 		self.updateExpView()
 		self.updateActiveView()
+
+		l = self.expCheckedList[self.etype]
+		p = self.plotWidgets[self.etype]
+		p.hideAll()
+		p.show(i)
+		for i in l:
+			p.show(i)
 
 	@Slot(int)
 	def reset_slot(self):
@@ -542,6 +577,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def started_slot(self):
 		print(f"started_slot")
 		self.updateActiveView()
+		l = self.expCheckedList[self.etype]
+		p = self.plotWidgets[self.etype]
+		p.hideAll()
+		for i in l:
+			p.show(i)
+		self.plotWidgets[self.etype].new_curve()
 
 	@Slot(int)
 	def paused_slot(self):
@@ -556,6 +597,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	@Slot(int)
 	def stoped_slot(self):
 		print(f"stoped_slot")
+
 		e = self.exp[self.etype]
 		self.sig_start .disconnect(e.start)
 		self.sig_pause .disconnect(e.pause)
@@ -568,6 +610,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		e.dataChanged  .disconnect(self.dataChanged_slot)
 		self.expList[self.etype].append(e)
 		self.expSelectionList[self.etype] = len(self.expList[self.etype])-1
+
 		e = Experiment(self.etype)
 		e.fill(self.exp[self.etype])
 		self.sig_start .connect(e.start)
@@ -588,10 +631,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		print(f"dataChanged_slot")
 		e = self.exp[self.etype]
 		self.progress_bar.setValue(int(100*(e.currentWl-e.startWl)/(e.stopWl-e.startWl)))
+		e.rlock()
+		x = e.data[0].copy()
+		y = e.data[1].copy()
+		e.unlock()
+		self.plotWidgets[self.etype].updateData(x, y)
 
 
 
 if __name__ == '__main__':
+
+	pg.setConfigOptions(antialias=True)
+
 	app = QApplication(sys.argv)
 	window = MainWindow()
 	window.show()

@@ -45,7 +45,7 @@
        <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>-1</number>
       </property>
       <property name="elideMode">
        <enum>Qt::TextElideMode::ElideNone</enum>
@@ -62,21 +62,6 @@
       <property name="movable">
        <bool>false</bool>
       </property>
-      <widget class="QWidget" name="tab_si">
-       <attribute name="title">
-        <string>Si</string>
-       </attribute>
-      </widget>
-      <widget class="QWidget" name="tab_ingaas">
-       <attribute name="title">
-        <string>InGaAs</string>
-       </attribute>
-      </widget>
-      <widget class="QWidget" name="tab_sample">
-       <attribute name="title">
-        <string>Sample</string>
-       </attribute>
-      </widget>
      </widget>
     </item>
     <item>
