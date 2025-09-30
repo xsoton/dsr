@@ -1,19 +1,13 @@
-from PySide6.QtCore import (
-	Qt, QCoreApplication, QThread, Signal, Slot, QFile, QRegularExpression,
-	QLocale, QItemSelection, QItemSelectionModel, QDateTime, QDir)
+from PySide6.QtCore import Qt, QThread, Signal, Slot, QRegularExpression, QLocale, QItemSelection, QItemSelectionModel
 from PySide6.QtGui import (
-	QGuiApplication, QPalette, QColor, QPixmap, QIcon, QTransform,
-	QRegularExpressionValidator, QDoubleValidator, QIntValidator,
-	QStandardItemModel, QStandardItem)
+	QGuiApplication, QColor, QStandardItemModel, QStandardItem,
+	QRegularExpressionValidator, QDoubleValidator, QIntValidator)
 from PySide6.QtWidgets import *
-
-# import numpy as np
 import pyqtgraph as pg
 import sys
-
 from design import Ui_MainWindow
 from experiment import Experiment
-# from filenames import *
+from dsr import DSR
 
 class PlotWidget(pg.PlotWidget):
 	color_list = [
@@ -180,6 +174,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.link_signals()
 
 		self.eThread = QThread()
+		self.eThread.finished.connect(self.eThread.deleteLater)
 		self.eThread.start()
 
 	def updateExpView(self):
@@ -458,9 +453,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def start_button_slot(self):
 		e = self.exp[self.etype]
 		if len(e.sampleName) == 0: return
-		if   e.status == 0: e.status = 1; e.moveToThread(self.eThread); self.sig_start.emit()
-		elif e.status == 1: e.status = 2; self.sig_pause.emit()
-		elif e.status == 2: e.status = 1; self.sig_resume.emit()
+		if e.status == 0:
+			e.status = 1
+			self.eThread.finished.connect(e.deleteLater)
+			e.moveToThread(self.eThread)
+			self.sig_start.emit()
+		elif e.status == 1:
+			e.status = 2
+			self.sig_pause.emit()
+		elif e.status == 2:
+			e.status = 1
+			self.sig_resume.emit()
 
 	def stop_button_slot(self):
 		e = self.exp[self.etype]
@@ -473,13 +476,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		i = item.row()
 		c = (item.checkState() == Qt.Checked)
 		l = self.expCheckedList[self.etype]
+		s = self.expSelectionList[self.etype]
 		p = self.plotWidgets[self.etype]
 		if c and (i not in l):
 			l.append(i)
 			p.show(i)
 		elif i in l:
 			l.remove(i)
-			p.hide(i)
+			if i != s:
+				p.hide(i)
 
 	@Slot(QItemSelection, QItemSelection)
 	def selectionChanged_slot(self, s1: QItemSelection, s2: QItemSelection):
