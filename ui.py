@@ -1,6 +1,6 @@
 from PySide6.QtCore import (
 	Qt, QCoreApplication, QThread, Signal, Slot, QFile, QRegularExpression,
-	QLocale, QItemSelection, QItemSelectionModel)
+	QLocale, QItemSelection, QItemSelectionModel, QDateTime, QDir)
 from PySide6.QtGui import (
 	QGuiApplication, QPalette, QColor, QPixmap, QIcon, QTransform,
 	QRegularExpressionValidator, QDoubleValidator, QIntValidator,
@@ -59,10 +59,6 @@ class PlotWidget(pg.PlotWidget):
 		item.setPen(pen)
 		self.items.append(item)
 		self.addItem(item)
-
-	# def plot_line(self, x, y, color=QColor("red"), label=" "):
-	# 	pen = pg.mkPen(color=color, width=1)
-	# 	self.data_line = self.plot(x, y, pen=pen, name=label)
 
 	def updateData(self, x, y):
 		self.items[-1].setData(x, y)
@@ -188,8 +184,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.link_signals()
 
 	def updateExpView(self):
-		print(f"updateExpView {self.etype}")
-
 		e = self.exp[self.etype]
 
 		self.sample_edit.setText(e.sampleName)
@@ -211,8 +205,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	def updateActiveView(self):
 		e = self.exp[self.etype]
-		print(f"updateActiveView {e.status}")
-
 		# 0 - idle, 1 - started, 2 - paused, 3 - ended
 		if e.status == 0:
 			self.start_button.setText("Start")
@@ -256,8 +248,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.exp_list_view.setDisabled(False)
 
 	def updateExpListView(self):
-		print("updateExpListView")
-
 		l = self.expList[self.etype]
 		s = self.expSelectionList[self.etype]
 		index = None
@@ -282,6 +272,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			item = QStandardItem(f"{i} : {sampleName}")
 			item.setCheckable(True)
 			item.setSelectable(True)
+			item.setEditable(False)
 			parentItem.appendRow(item)
 			if i == s:
 				make_selection = True
@@ -298,7 +289,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.exp_list_view.selectionModel().selectionChanged.connect(self.selectionChanged_slot)
 
 	def link_signals(self):
-		print("link_signals")
 		self.sample_edit.returnPressed.connect(self.sample_edit_new_slot)
 		self.sample_edit.inputRejected.connect(self.sample_edit_rejected_slot)
 		self.start_edit.returnPressed.connect(self.start_edit_new_slot)
@@ -352,140 +342,91 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		# БИНД СЛОТА!!!! setWl_done_slot
 
 	def sample_edit_new_slot(self):
-		sampleName = self.sample_edit.text()
-		self.exp[self.etype].sampleName = sampleName
+		self.exp[self.etype].sampleName = self.sample_edit.text()
 		self.sample_edit.setStyleSheet("")
-		print(f"sample_edit_new_slot \"{sampleName}\"")
 	def sample_edit_edited_slot(self, text):
 		if self.exp[self.etype].sampleName != text:
 			self.sample_edit.setStyleSheet("background: yellow; color: black")
-		print(f"sample_edit_edited_slot \"{text}\"")
 	def sample_edit_rejected_slot(self):
-		sampleName = self.sample_edit.text()
 		self.sample_edit.setStyleSheet("background: red; color: white")
-		print(f"sample_edit_rejected_slot \"{sampleName}\"")
 
 	def start_edit_new_slot(self):
-		startWl = float(self.start_edit.text())
-		self.exp[self.etype].startWl = startWl
+		self.exp[self.etype].startWl = float(self.start_edit.text())
 		self.start_edit.setStyleSheet("")
-		print(f"start_edit_new_slot \"{startWl}\"")
 	def start_edit_edited_slot(self, text):
-		startWl = float(text)
-		if self.exp[self.etype].startWl != startWl:
+		if self.exp[self.etype].startWl != float(text):
 			self.start_edit.setStyleSheet("background: yellow")
-		print(f"start_edit_edited_slot \"{startWl}\"")
 
 	def stop_edit_slot(self):
-		stopWl = float(self.stop_edit.text())
-		self.exp[self.etype].stopWl = stopWl
+		self.exp[self.etype].stopWl = float(self.stop_edit.text())
 		self.stop_edit.setStyleSheet("")
-		print(f"stop_edit_slot \"{stopWl}\"")
 	def stop_edit_edited_slot(self, text):
-		stopWl = float(text)
-		if self.exp[self.etype].stopWl != stopWl:
+		if self.exp[self.etype].stopWl != float(text):
 			self.stop_edit.setStyleSheet("background: yellow")
-		print(f"stop_edit_edited_slot \"{stopWl}\"")
 
 	def step_edit_slot(self):
-		stepWl = float(self.step_edit.text())
-		self.exp[self.etype].stepWl = stepWl
+		self.exp[self.etype].stepWl = float(self.step_edit.text())
 		self.step_edit.setStyleSheet("")
-		print(f"step_edit_slot \"{stepWl}\"")
 	def step_edit_edited_slot(self, text):
-		stepWl = float(text)
-		if self.exp[self.etype].stepWl != stepWl:
+		if self.exp[self.etype].stepWl != float(text):
 			self.step_edit.setStyleSheet("background: yellow")
-		print(f"step_edit_edited_slot \"{stepWl}\"")
 
 	def delay_edit_slot(self):
-		delay = float(self.delay_edit.text())
-		self.exp[self.etype].delay = delay
+		self.exp[self.etype].delay = float(self.delay_edit.text())
 		self.delay_edit.setStyleSheet("")
-		print(f"delay_edit_slot \"{delay}\"")
 	def delay_edit_edited_slot(self, text):
-		delay = float(text)
-		if self.exp[self.etype].delay != delay:
+		if self.exp[self.etype].delay != float(text):
 			self.delay_edit.setStyleSheet("background: yellow")
-		print(f"delay_edit_edited_slot \"{delay}\"")
 
 	def channel1_radio_slot(self):
-		channel = 1 if self.channel1_radio.isChecked() else 2
-		self.exp[self.etype].channel = channel
-		print(f"channel1_radio_slot \"{channel}\"")
+		self.exp[self.etype].channel = 1 if self.channel1_radio.isChecked() else 2
 
 	def channel2_radio_slot(self):
-		channel = 2 if self.channel2_radio.isChecked() else 1
-		self.exp[self.etype].channel = channel
-		print(f"channel2_radio_slot \"{channel}\"")
+		self.exp[self.etype].channel = 2 if self.channel2_radio.isChecked() else 1
 
 	def voltage_check_slot(self):
-		voltageFlag = self.voltage_check.isChecked()
-		self.exp[self.etype].voltageFlag = voltageFlag
-		print(f"voltage_check_slot \"{voltageFlag}\"")
+		self.exp[self.etype].voltageFlag = self.voltage_check.isChecked()
 
 	def voltage_edit_slot(self):
-		voltage = float(self.voltage_edit.text())
-		self.exp[self.etype].voltage = voltage
+		self.exp[self.etype].voltage = float(self.voltage_edit.text())
 		self.voltage_edit.setStyleSheet("")
-		print(f"voltage_edit_slot \"{voltage}\"")
 	def voltage_edit_edited_slot(self, text):
-		voltage = float(text)
-		if self.exp[self.etype].voltage != voltage:
+		if self.exp[self.etype].voltage != float(text):
 			self.voltage_edit.setStyleSheet("background: yellow")
-		print(f"voltage_edit_edited_slot \"{voltage}\"")
 
 	def nplc_edit_slot(self):
-		nplc = int(self.nplc_edit.text())
-		self.exp[self.etype].nplc = nplc
+		self.exp[self.etype].nplc = int(self.nplc_edit.text())
 		self.nplc_edit.setStyleSheet("")
-		print(f"nplc_edit_slot \"{nplc}\"")
 	def nplc_edit_edited_slot(self, text):
-		nplc = int(text)
-		if self.exp[self.etype].nplc != nplc:
+		if self.exp[self.etype].nplc != int(text):
 			self.nplc_edit.setStyleSheet("background: yellow")
-		print(f"nplc_edit_edited_slot \"{nplc}\"")
 
 	def average_check_slot(self):
-		averageFlag = self.average_check.isChecked()
-		self.exp[self.etype].averageFlag = averageFlag
-		print(f"average_check_slot \"{averageFlag}\"")
+		self.exp[self.etype].averageFlag = self.average_check.isChecked()
 
 	def average_edit_slot(self):
-		average = int(self.average_edit.text())
-		self.exp[self.etype].average = average
+		self.exp[self.etype].average = int(self.average_edit.text())
 		self.average_edit.setStyleSheet("")
-		print(f"average_edit_slot \"{average}\"")
 	def average_edit_edited_slot(self, text):
-		average = int(text)
-		if self.exp[self.etype].average != average:
+		if self.exp[self.etype].average != int(text):
 			self.average_edit.setStyleSheet("background: yellow")
-		print(f"average_edit_edited_slot \"{average}\"")
 
 	def wl_edit_slot(self):
-		wl = float(self.wl_edit.text())
-		self.wl = wl
+		self.wl = float(self.wl_edit.text())
 		self.wl_edit.setStyleSheet("")
-		print(f"wl_edit_slot \"{wl}\"")
-		self.sig_wl.emit(wl)
+		self.sig_wl.emit(self.wl)
 	def wl_edit_edited_slot(self, text):
-		wl = float(text)
-		if self.wl != wl:
+		if self.wl != float(text):
 			self.wl_edit.setStyleSheet("background: yellow")
-		print(f"wl_edit_edited_slot \"{wl}\"")
 	@Slot(float)
 	def setWl_done_slot(self, wl: float):
 		self.wl_edit.setStyleSheet("background: green")
-		print(f"wl_set_done_slot \"{wl}\"")
 
 	def shutter_check_slot(self):
-		shutter = self.shutter_check.isChecked()
-		self.shutter = shutter
-		print(f"shutter_ check_slot \"{shutter}\"")
-		self.sig_shutter.emit(shutter)
+		self.shutter = self.shutter_check.isChecked()
+		self.sig_shutter.emit(self.shutter)
 
 	def tabs_changed_slot(self, index: int):
-		print(f"tabs_changed_slot \"{index}\"")
 
 		e = self.exp[self.etype]
 		self.sig_start .disconnect(e.start)
@@ -517,16 +458,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	def start_button_slot(self):
 		e = self.exp[self.etype]
-		t = self.start_button.text()
-		print(f"start_button_slot \"{t}\" status = {e.status} sampleName = {e.sampleName}")
 		if len(e.sampleName) == 0: return
 		if   e.status == 0: e.status = 1; self.sig_start.emit()
 		elif e.status == 1: e.status = 2; self.sig_pause.emit()
 		elif e.status == 2: e.status = 1; self.sig_resume.emit()
-		print(f"end start_button_slot \"{t}\" status = {e.status} sampleName = {e.sampleName}")
 
 	def stop_button_slot(self):
-		print(f"stop_button_slot \"{self.stop_button.text()}\"")
 		e = self.exp[self.etype]
 		if   e.status == 0:               self.sig_reset.emit()
 		elif e.status == 1: e.status = 3; self.sig_stop.emit()
@@ -535,7 +472,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	@Slot(QStandardItem)
 	def itemChanged_slot(self, item: QStandardItem):
 		i = item.row()
-		c = item.checkState() == Qt.Checked
+		c = (item.checkState() == Qt.Checked)
 		l = self.expCheckedList[self.etype]
 		p = self.plotWidgets[self.etype]
 		if c and (i not in l):
@@ -544,7 +481,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		elif i in l:
 			l.remove(i)
 			p.hide(i)
-		print(f"itemChanged_slot {i} checked {c}")
 
 	@Slot(QItemSelection, QItemSelection)
 	def selectionChanged_slot(self, s1: QItemSelection, s2: QItemSelection):
@@ -552,7 +488,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.expSelectionList[self.etype] = i
 		e = self.exp[self.etype]
 		e1 = self.expList[self.etype][i]
-		print(f"selectionChanged_slot {i}")
 		if e.status == 0:
 			e.fill(e1)
 		elif e.status == 3:
@@ -569,13 +504,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	@Slot(int)
 	def reset_slot(self):
-		print(f"reset_slot")
 		self.exp[self.etype].reset()
 		self.updateExpView()
 
 	@Slot(int)
 	def started_slot(self):
-		print(f"started_slot")
 		self.updateActiveView()
 		l = self.expCheckedList[self.etype]
 		p = self.plotWidgets[self.etype]
@@ -586,18 +519,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	@Slot(int)
 	def paused_slot(self):
-		print(f"paused_slot")
 		self.updateActiveView()
 
 	@Slot(int)
 	def resumed_slot(self):
-		print(f"resumed_slot")
 		self.updateActiveView()
 
 	@Slot(int)
 	def stoped_slot(self):
-		print(f"stoped_slot")
-
 		e = self.exp[self.etype]
 		self.sig_start .disconnect(e.start)
 		self.sig_pause .disconnect(e.pause)
@@ -628,7 +557,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	@Slot()
 	def dataChanged_slot(self):
-		print(f"dataChanged_slot")
 		e = self.exp[self.etype]
 		self.progress_bar.setValue(int(100*(e.currentWl-e.startWl)/(e.stopWl-e.startWl)))
 		e.rlock()
@@ -637,10 +565,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		e.unlock()
 		self.plotWidgets[self.etype].updateData(x, y)
 
-
-
 if __name__ == '__main__':
-
 	pg.setConfigOptions(antialias=True)
 
 	app = QApplication(sys.argv)

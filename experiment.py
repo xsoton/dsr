@@ -1,5 +1,5 @@
 from typing import Self
-from PySide6.QtCore import QObject, QReadWriteLock, Signal, Slot, QDateTime, QTimer
+from PySide6.QtCore import QObject, QReadWriteLock, Signal, Slot, QDateTime, QTimer, QDir, QFile, QIODevice
 
 class Experiment(QObject):
 	type: int = 0 # 0 - Si, 1 - InGaAs, 2 - Sample
@@ -98,10 +98,33 @@ class Experiment(QObject):
 	@Slot()
 	def start(self):
 		self.status = 1
+
 		self.dateTime = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
+		self.fileName = f"{self.dateTime}_{self.sampleName}.dat"
+		self.file = QFile(self.fileName)
+		self.file.open(QIODevice.ReadWrite)
+		self.file.write(f"# DSR600: Spectrum Responsivity Experiment\n".encode())
+		self.file.write(f"# dateTime: {self.dateTime}\n".encode())
+		self.file.write(f"# sampleName: {self.sampleName}\n".encode())
+		self.file.write(f"# startWl: {self.startWl}\n".encode())
+		self.file.write(f"# stopWl: {self.stopWl}\n".encode())
+		self.file.write(f"# stepWl: {self.stepWl}\n".encode())
+		self.file.write(f"# delay: {self.sampleName}\n".encode())
+		self.file.write(f"# channel: {self.channel}\n".encode())
+		self.file.write(f"# voltageFlag: {self.voltageFlag}\n".encode())
+		self.file.write(f"# voltage: {self.voltage}\n".encode())
+		self.file.write(f"# nplc: {self.nplc}\n".encode())
+		self.file.write(f"# averageFlag: {self.averageFlag}\n".encode())
+		self.file.write(f"# average: {self.average}\n".encode())
+		self.file.write(f"# Columns:\n".encode())
+		self.file.write(f"#   1 - wavelength, nm\n".encode())
+		self.file.write(f"#   2 - current, A\n".encode())
+		self.file.flush()
+
 		# test!!!
 		self.timer.start(100)
 		# end test!!!
+
 		self.started.emit()
 
 	@Slot()
@@ -126,6 +149,7 @@ class Experiment(QObject):
 		# test!!!
 		self.timer.stop()
 		# test!!!
+		self.file.close()
 		self.stoped.emit()
 
 	@Slot(float, float)
@@ -135,12 +159,13 @@ class Experiment(QObject):
 		self.data[1].append(current)
 		self.unlock()
 		self.currentWl = wl
+		self.file.write(f"{wl:.2f}\t{current:+.9e}\n".encode())
+		self.file.flush()
 		self.dataChanged.emit()
 
 	# test!!!
 	@Slot()
 	def dataGenerate(self):
-		print(f"dataGenerate")
 		if self.status > 2:
 			return
 		if self.steps == 0:
