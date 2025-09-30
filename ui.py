@@ -95,6 +95,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	plotWidgets = []
 
+	eThread: QThread
+
 	sig_new    = Signal()
 	sig_reset  = Signal()
 	sig_start  = Signal()
@@ -118,12 +120,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.tabs.addTab(self.plotWidgets[0], "Si")
 		self.tabs.addTab(self.plotWidgets[1], "InGaAs")
 		self.tabs.addTab(self.plotWidgets[2], "Sample")
-		# self.plotWidgets[0].plot_line([], [])
-		# self.plotWidgets[1].plot_line([], [])
-		# self.plotWidgets[2].plot_line([], [])
-
-		# self.plot_widget = PlotWidget()
-		# self.main_splitter.insertWidget(0, self.plot_widget)
 
 		# initialize filters
 		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
@@ -182,6 +178,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.updateExpListView()
 
 		self.link_signals()
+
+		self.eThread = QThread()
+		self.eThread.start()
 
 	def updateExpView(self):
 		e = self.exp[self.etype]
@@ -459,7 +458,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def start_button_slot(self):
 		e = self.exp[self.etype]
 		if len(e.sampleName) == 0: return
-		if   e.status == 0: e.status = 1; self.sig_start.emit()
+		if   e.status == 0: e.status = 1; e.moveToThread(self.eThread); self.sig_start.emit()
 		elif e.status == 1: e.status = 2; self.sig_pause.emit()
 		elif e.status == 2: e.status = 1; self.sig_resume.emit()
 
@@ -558,12 +557,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	@Slot()
 	def dataChanged_slot(self):
 		e = self.exp[self.etype]
-		self.progress_bar.setValue(int(100*(e.currentWl-e.startWl)/(e.stopWl-e.startWl)))
 		e.rlock()
+		self.progress_bar.setValue(int(100*(e.currentWl-e.startWl)/(e.stopWl-e.startWl)))
 		x = e.data[0].copy()
 		y = e.data[1].copy()
 		e.unlock()
 		self.plotWidgets[self.etype].updateData(x, y)
+
+	def closeEvent(self, event):
+		self.eThread.quit()
+		self.eThread.wait()
+		event.accept()
 
 if __name__ == '__main__':
 	pg.setConfigOptions(antialias=True)
