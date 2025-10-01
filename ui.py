@@ -73,7 +73,6 @@ class PlotWidget(pg.PlotWidget):
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
-	# plot_widget: PlotWidget
 	etype: int = 0
 
 	exp = []
@@ -111,9 +110,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.plotWidgets.append(PlotWidget())
 		self.plotWidgets.append(PlotWidget())
 		self.plotWidgets.append(PlotWidget())
+		# self.plotWidgets.append(PlotWidget())
 		self.tabs.addTab(self.plotWidgets[0], "Si")
 		self.tabs.addTab(self.plotWidgets[1], "InGaAs")
 		self.tabs.addTab(self.plotWidgets[2], "Sample")
+		# self.tabs.addTab(self.plotWidgets[3], "Result")
+		# self.tabs.setTabEnabled(3, False)
 
 		# initialize filters
 		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
@@ -253,7 +255,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		model.itemChanged.disconnect(self.itemChanged_slot)
 		model.clear()
 		parentItem = model.invisibleRootItem()
-		# self.plotWidgets[self.etype].hideAll()
 
 		for i in range(len(l)):
 			e = l[i]
@@ -273,7 +274,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 				index = item.index()
 			if i in self.expCheckedList[self.etype]:
 				item.setCheckState(Qt.Checked)
-				# self.plotWidgets[self.etype].show(i)
 
 		model.itemChanged.connect(self.itemChanged_slot)
 
@@ -421,7 +421,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.sig_shutter.emit(self.shutter)
 
 	def tabs_changed_slot(self, index: int):
-
 		e = self.exp[self.etype]
 		self.sig_start .disconnect(e.start)
 		self.sig_pause .disconnect(e.pause)
