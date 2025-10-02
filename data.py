@@ -6,6 +6,7 @@ class Experiment(QObject):
 	type: int = 0 # 0 - Si, 1 - InGaAs, 2 - Sample
 	status: int = 0 # 0 - idle, 1 - started, 2 - paused, 3 - ended
 	dateTime: str = ""
+	filename: str = ""
 	currentWl: float = 300
 	steps: int = 0
 	
@@ -118,8 +119,8 @@ class Experiment(QObject):
 		self.file.write(f"# averageFlag: {self.averageFlag}\n".encode())
 		self.file.write(f"# average: {self.average}\n".encode())
 		self.file.write(f"# Columns:\n".encode())
-		self.file.write(f"#   1 - wavelength, nm\n".encode())
-		self.file.write(f"#   2 - current, A\n".encode())
+		self.file.write(f"#   1 - Wavelength, nm\n".encode())
+		self.file.write(f"#   2 - Current, A\n".encode())
 		self.file.flush()
 
 		# test!!!

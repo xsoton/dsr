@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, Signal, Slot, QItemSelection, QItemSelectionModel
+from PySide6.QtCore import Qt, QDateTime, Signal, Slot, QItemSelection, QItemSelectionModel, QFile, QIODevice
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtWidgets import QWidget
 
@@ -92,16 +92,29 @@ class ResControl(QWidget, Ui_resControl):
 		print("save_button_slot")
 		self.save_button.setDisabled(True)
 
-		# dateTime = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
-		# fileName = f"{dateTime}_responsivity.dat"
-		# file = QFile(fileName)
-		# file.open(QIODevice.ReadWrite)
-		# file.write(f"# DSR600: Spectrum Responsivity Experiment\n".encode())
-		# file.write(f"# dateTime: {dateTime}\n".encode())
-		# file.write(f"# Columns:\n".encode())
-		# file.write(f"#   1 - wavelength, nm\n".encode())
-		# file.write(f"#   2 - current, A\n".encode())
-		# file.flush()
+		dateTime = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
+		for i,d in self.expCheckedList.items():
+			d1 = self.data[0].expList[self.idVIS]
+			d2 = self.data[1].expList[self.idIR]
+			d3 = self.data[2].expList[i]
+
+			fileName = f"{dateTime}_responsivity_{i}-{d3.sampleName}.dat"
+			file = QFile(fileName)
+			file.open(QIODevice.ReadWrite)
+			file.write(f"# DSR600: Spectrum Responsivity Experiment\n".encode())
+			file.write(f"# dateTime: {dateTime}\n".encode())
+			file.write(f"# VIS: {d1.fileName}\n".encode())
+			file.write(f"#  IR: {d2.fileName}\n".encode())
+			file.write(f"# SAM: {d3.fileName}\n".encode())
+			file.write(f"# Columns:\n".encode())
+			file.write(f"#   1 - Wavelength, nm\n".encode())
+			file.write(f"#   2 - Responsivity, A/W\n".encode())
+
+			for j in range(len(d[0])):
+				file.write(f"{d[0][j]:.2f}\t{d[1][j]:+.9e}\n".encode())
+
+			file.flush()
+			file.close()
 
 		self.save_button.setDisabled(False)
 
