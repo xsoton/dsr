@@ -1,117 +1,11 @@
-from typing import Self, List
 from PySide6.QtCore import Qt, QThread, Signal, Slot, QRegularExpression, QLocale, QItemSelection, QItemSelectionModel
-from PySide6.QtGui import (
-	QGuiApplication, QColor, QStandardItemModel, QStandardItem,
-	QRegularExpressionValidator, QDoubleValidator, QIntValidator)
-from PySide6.QtWidgets import *
-import pyqtgraph as pg
-import sys
-import numpy as np
-from scipy.interpolate import interp1d
-from expControl import Ui_expControl
-from resControl import Ui_resControl
-from experiment import Experiment, Data
-from detectorSi import detectorSi as detVIS
-from detectorInGaAs import detectorInGaAs as detIR
-from dsr import DSR
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QRegularExpressionValidator, QDoubleValidator, QIntValidator
+from PySide6.QtWidgets import QWidget
 
-class PlotWidget(pg.PlotWidget):
-	color_list = [
-		QColor("black"),
-		QColor("red"),
-		QColor("green"),
-		QColor("blue"),
-		QColor(204, 204, 0),
-		QColor(255, 0, 127),
-		QColor(0, 204, 204),
-		QColor(255, 128, 0)]
-	styles = {"color": "black", "font-size": "16px", "font": "Calibri"}
+from typing import Self, List
 
-	def __init__(self):
-		super(PlotWidget, self).__init__()
-		self.setBackground("w")
-		self.setMinimumSize(700, 500)
-		#self.setTitle("vac", color="b", size="20pt")
-		self.setLabel("left", "Current, A", **self.styles)
-		self.setLabel("bottom", "Wavelength, nm", **self.styles)
-		self.addLegend()
-		self.showGrid(x=True, y=True)
-		# self.setXRange(300, 2000)
-		# self.setYRange(0, 1)
-		self.getPlotItem().enableAutoRange(axis=pg.ViewBox.XAxis)
-		self.getPlotItem().enableAutoRange(axis=pg.ViewBox.YAxis)
-		self.zero_axis_pen = pg.mkPen(color="black", width=1)
-		self.v_line = pg.InfiniteLine(pos=0, angle=0, pen=self.zero_axis_pen)
-		self.h_line = pg.InfiniteLine(pos=0, angle=90, pen=self.zero_axis_pen)
-		self.addItem(self.v_line)
-		self.addItem(self.h_line)
-
-		self.items = []
-		self.showItems = []
-		self.color_index = 0
-
-	@Slot()
-	def newCurve(self):
-		color=self.color_list[self.color_index]
-		self.color_index = self.color_index + 1
-		if self.color_index >= len(self.color_list):
-			self.color_list = 0
-		pen = pg.mkPen(color=color, width=1)
-		item = pg.PlotCurveItem(pen=pen)
-		item.setPen(pen)
-		self.items.append(item)
-		self.showItems.append(item)
-		self.addItem(item)
-
-	@Slot(int, list, list)
-	def updateDataIndex(self, index, x, y):
-		print(f"updateDataIndex {index}")
-		self.items[index].setData(x, y)
-		self.getPlotItem().autoRange(items = self.showItems)
-
-	@Slot(list, list)
-	def updateData(self, x, y):
-		print(f"updateData")
-		self.updateDataIndex(-1, x, y)
-
-	@Slot(int)
-	def show(self, i):
-		print(f"show {i}")
-		item = self.items[i]
-		item.show()
-		if item not in self.showItems:
-			self.showItems.append(item)
-		self.getPlotItem().autoRange(items = self.showItems)
-
-	@Slot()
-	def showAll(self):
-		print(f"showAll")
-		for item in self.items:
-			item.show()
-			if item not in self.showItems:
-				self.showItems.append(item)
-		self.getPlotItem().autoRange(items = self.showItems)
-
-	@Slot(int)
-	def hide(self, i):
-		print(f"hide {i}")
-		item = self.items[i]
-		item.hide()
-		if item in self.showItems:
-			self.showItems.remove(item)
-		self.getPlotItem().autoRange(items = self.showItems)
-
-	@Slot()
-	def hideAll(self):
-		print(f"hideAll")
-		for item in self.items:
-			item.hide()
-			if item in self.showItems:
-				self.showItems.remove(item)
-		self.getPlotItem().autoRange(items = self.showItems)
-
-	def setYLabel(self, label: str):
-		self.setLabel("left", label, **self.styles)
+from ui_expControl import Ui_expControl
+from data import Experiment, Data
 
 class ExpControl(QWidget, Ui_expControl):
 
@@ -428,31 +322,39 @@ class ExpControl(QWidget, Ui_expControl):
 		c = (item.checkState() == Qt.Checked)
 		s = self.data.expSelected
 		l = self.data.expCheckedList
-		if i not in l:
-			if c: l.append(i)
-		else:
-			if not c: l.remove(i)
 
-		self.sig_hideAll.emit()
-		for i in l:
-			self.sig_show.emit(i)
-		self.sig_show.emit(s)
+		if i not in l:
+			if c:
+				l.append(i)
+				if i != s:
+					self.sig_show.emit(i)
+		else:
+			if not c:
+				l.remove(i)
+				if i != s:
+					self.sig_hide.emit(i)
 
 		self.sig_checked.emit()
 
 	@Slot(QItemSelection, QItemSelection)
 	def onSelectionChanged(self, s1: QItemSelection, s2: QItemSelection):
-		i = self.exp_list_view.selectionModel().selection().indexes()[0].row()
-		self.data.expSelected = i
-		self.data.exp.fill(self.data.expList[i])
+		l = self.data.expCheckedList
+
+		for idx in s1.indexes():
+			i = idx.row()
+			self.data.expSelected = i
+			if i not in l:
+				self.sig_show.emit(i)
+
+		for idx in s2.indexes():
+			i = idx.row()
+			if i not in l:
+				self.sig_hide.emit(i)
+
+		self.data.exp.fill(self.data.expList[self.data.expSelected])
 
 		self.updateExpView()
 		self.updateActiveView()
-
-		self.sig_hideAll.emit()
-		self.sig_show.emit(i)
-		for i in self.data.expCheckedList:
-			self.sig_show.emit(i)
 
 	@Slot(int)
 	def onReset(self):
@@ -521,221 +423,3 @@ class ExpControl(QWidget, Ui_expControl):
 	def onExit(self):
 		self.eThread.quit()
 		self.eThread.wait()
-
-
-class ResControl(QWidget, Ui_resControl):
-	expSelected: int
-	expCheckedList = List[int]
-
-	idVIS = -1
-	idIR = -1
-
-	sig_newCurve        = Signal()
-	sig_updateData      = Signal(list, list)
-	sig_updateDataIndex = Signal(int, list, list)
-	sig_show            = Signal(int)
-	sig_hide            = Signal(int)
-	sig_showAll         = Signal()
-	sig_hideAll         = Signal()
-
-	def __init__(self, data: List[Data], parent=None):
-		super(ResControl, self).__init__(parent)
-		self.setupUi(self)
-
-		self.data = data
-
-		m = QStandardItemModel()
-		m.itemChanged.connect(self.onItemChanged)
-		self.exp_list_view.setModel(m)
-		self.exp_list_view.selectionModel().selectionChanged.connect(self.onSelectionChanged)
-		self.expSelected = -1
-		self.expCheckedList = []
-
-		self.save_button.released.connect(self.save_button_slot)
-
-	def addExpToListView(self):
-		e = self.data[2].expList[-1]
-		i = len(self.data[2].expList)-1
-		p = self.exp_list_view.model().invisibleRootItem()
-
-		it = QStandardItem(f"{i} : {e.sampleName}")
-		it.setCheckable(True)
-		it.setSelectable(True)
-		it.setEditable(False)
-		it.setEnabled(False)
-		p.appendRow(it)
-		self.exp_list_view.selectionModel().select(it.index(), QItemSelectionModel.SelectionFlag.ClearAndSelect)
-
-	@Slot()
-	def onChecked(self):
-		print(f"onChecked")
-		l0 = self.data[0].expCheckedList
-		l1 = self.data[1].expCheckedList
-		if len(l0) > 0: self.idVIS = l0[-1]
-		else:           self.idVIS = -1
-		if len(l1) > 0: self.idIR  = l1[-1]
-		else:           self.idIR  = -1
-
-		cl = self.expCheckedList
-		cd = self.data[2].expCheckedList
-
-		a = self.idVIS >=0 and self.idIR >= 0
-		for i in range(len(self.data[2].expList)):
-			it = self.exp_list_view.model().item(i)
-			# it.setCheckState(Qt.Unchecked)
-			en = False
-			ch = False
-			if i in cd:
-				en = True
-			else:
-				en = False
-				if i in cl:
-					cl.remove(i)
-			if i in cl:
-				ch = True
-
-			print(f"{i} ch {ch} en {en}")
-			it.setCheckState(Qt.Checked if ch else Qt.Unchecked)
-			it.setEnabled(en)
-
-	@Slot()
-	def onEnded(self):
-		print("onEnded")
-		self.addExpToListView()
-
-	# !!!!!!!!!!!!!!
-	def save_button_slot(self):
-		print("save_button_slot")
-		self.save_button.setDisabled(True)
-
-		# dateTime = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
-		# fileName = f"{dateTime}_responsivity.dat"
-		# file = QFile(fileName)
-		# file.open(QIODevice.ReadWrite)
-		# file.write(f"# DSR600: Spectrum Responsivity Experiment\n".encode())
-		# file.write(f"# dateTime: {dateTime}\n".encode())
-		# file.write(f"# Columns:\n".encode())
-		# file.write(f"#   1 - wavelength, nm\n".encode())
-		# file.write(f"#   2 - current, A\n".encode())
-		# file.flush()
-
-		self.save_button.setDisabled(False)
-
-	@Slot(QStandardItem)
-	def onItemChanged(self, item: QStandardItem):
-		i = item.row()
-		c = (item.checkState() == Qt.Checked)
-		print(f"onItemChanged {i} ch {c}")
-		s = self.expSelected
-		l = self.expCheckedList
-		if i not in l:
-			if c: l.append(i)
-		else:
-			if not c: l.remove(i)
-
-		self.sig_hideAll.emit()
-		for i in l:
-			self.sig_show.emit(i)
-		self.sig_show.emit(s)
-		self.calc(s)
-
-	@Slot(QItemSelection, QItemSelection)
-	def onSelectionChanged(self, s1: QItemSelection, s2: QItemSelection):
-		print("onSelectionChanged")
-		il = self.exp_list_view.selectionModel().selection().indexes()
-		self.sig_hideAll.emit()
-		if len(il) > 0:
-			i = il[0].row()
-			self.expSelected = i
-
-			self.sig_show.emit(i)
-			for i in self.expCheckedList:
-				self.sig_show.emit(i)
-
-	@Slot()
-	def onExit(self):
-		return
-
-	def calc(self, index: int):
-		print(f"calc {index}")
-
-		visRes = detVIS
-		irRes  = detIR
-		visSp  = self.data[0].expList[self.idVIS].data
-		irSp   = self.data[1].expList[self.idIR].data
-
-		# VIS
-
-		vrx = np.array(visRes[0])
-		vry = np.array(visRes[1])
-		vsx = np.array(visSp[0])
-		vsy = np.array(visSp[1])
-
-		s1 = np.min(vsx)
-		s2 = np.max(vsx)
-		x = []
-		y = []
-		for i in range(vrx.size):
-			if s1 <= vrx[i] and vrx[i] <= s2 and vrx[i] < 1100.0:
-				x.append(vrx[i])
-				y.append(vry[i])
-
-		vx = np.array(x)
-		vr = np.array(y)
-		vi = interp1d(vsx, vsy, kind='linear')
-		# vs = fi(vx)
-
-		# IR
-
-		irx = np.array(irRes[0])
-		iry = np.array(irRes[1])
-		isx = np.array(irSp[0])
-		isy = np.array(irSp[1])
-
-		s1 = np.min(isx)
-		s2 = np.max(isx)
-		x = []
-		y = []
-		for i in range(irx.size):
-			if s1 <= irx[i] and irx[i] <= s2 and irx[i] >= 1100.0:
-				x.append(irx[i])
-				y.append(iry[i])
-
-		ix = np.array(x)
-		ir = np.array(y)
-		ii = interp1d(isx, isy, kind='linear')
-		# is = fi(ix)
-
-		# SP
-
-		d = self.data[2].expList[index].data
-		sx = np.array(d[0])
-		sy = np.array(d[1])
-		si = interp1d(sx, sy, kind='linear')
-
-		s1 = np.min(sx)
-		s2 = np.max(sx)
-		x = []
-		y = []
-		for i in range(vx.size):
-			if s1 <= vx[i] and vx[i] <= s2 and vx[i] < 1100.0:
-				x.append(vx[i])
-				y.append(vr[i])
-
-		svx = np.array(x)
-		svr = np.array(y)
-
-		x = []
-		y = []
-		for i in range(ix.size):
-			if s1 <= ix[i] and ix[i] <= s2 and ix[i] >= 1100.0:
-				x.append(ix[i])
-				y.append(ir[i])
-
-		six = np.array(x)
-		sir = np.array(y)
-
-		x = np.append(svx, six)
-		y = np.append(svr * si(svx) / vi(svx), sir * si(six) / ii(six))
-
-		self.sig_updateDataIndex.emit(index, x, y)

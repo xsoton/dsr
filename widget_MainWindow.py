@@ -1,14 +1,14 @@
-from PySide6.QtCore import Qt, QThread, Signal, Slot, QRegularExpression, QLocale, QItemSelection, QItemSelectionModel
-from PySide6.QtGui import (
-	QGuiApplication, QColor, QStandardItemModel, QStandardItem,
-	QRegularExpressionValidator, QDoubleValidator, QIntValidator)
-from PySide6.QtWidgets import *
+from PySide6.QtCore import QThread, Signal, Slot
+from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QApplication
+
 import sys
 import pyqtgraph as pg
-from mainWindow import Ui_MainWindow
-from widgets import PlotWidget, ExpControl, ResControl
-from experiment import Experiment, Data
-from dsr import DSR
+
+from ui_mainWindow import Ui_MainWindow
+from widget_PlotWidget import PlotWidget
+from widget_ExpControl import ExpControl
+from widget_ResControl import ResControl
+from data import Data
 
 class MainWindow(QMainWindow, Ui_MainWindow):
 	sig_exit = Signal()
