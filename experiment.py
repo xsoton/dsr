@@ -1,4 +1,5 @@
-from typing import Self
+from typing import Self, List
+from dataclasses import dataclass
 from PySide6.QtCore import QObject, QReadWriteLock, Signal, Slot, QDateTime, QTimer, QDir, QFile, QIODevice
 
 class Experiment(QObject):
@@ -41,7 +42,7 @@ class Experiment(QObject):
 		# test!!!
 		self.timer = QTimer(self)
 		self.timer.timeout.connect(self.dataGenerate)
-		self.dataGenerated.connect(self.dataAdd)
+		self.dataGenerated.connect(self.onDataAdd)
 
 	def rlock(self):
 		self.lock.lockForRead()
@@ -64,7 +65,7 @@ class Experiment(QObject):
 		self.nplc        = e.nplc
 		self.averageFlag = e.averageFlag
 		self.average     = e.average
-		self.currentWl   = e.startWl
+		self.currentWl   = e.currentWl
 		self.steps       = 0
 
 	def reset(self):
@@ -96,7 +97,7 @@ class Experiment(QObject):
 		self.steps       = 0
 
 	@Slot()
-	def start(self):
+	def onStart(self):
 		self.status = 1
 
 		self.dateTime = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
@@ -122,13 +123,13 @@ class Experiment(QObject):
 		self.file.flush()
 
 		# test!!!
-		self.timer.start(100)
+		self.timer.start(20)
 		# end test!!!
 
 		self.started.emit()
 
 	@Slot()
-	def pause(self):
+	def onPause(self):
 		self.status = 2
 		# test!!!
 		self.timer.stop()
@@ -136,15 +137,15 @@ class Experiment(QObject):
 		self.paused.emit()
 
 	@Slot()
-	def resume(self):
+	def onResume(self):
 		self.status = 1
 		# test!!!
-		self.timer.start(100)
+		self.timer.start(20)
 		# test!!!
 		self.resumed.emit()
 
 	@Slot()
-	def stop(self):
+	def onStop(self):
 		self.status = 3
 		# test!!!
 		self.timer.stop()
@@ -153,7 +154,7 @@ class Experiment(QObject):
 		self.stoped.emit()
 
 	@Slot(float, float)
-	def dataAdd(self, wl: float, current: float):
+	def onDataAdd(self, wl: float, current: float):
 		self.wlock()
 		self.data[0].append(wl)
 		self.data[1].append(current)
@@ -173,10 +174,23 @@ class Experiment(QObject):
 		d = -1 if self.startWl > self.stopWl else 1
 		wl = self.startWl + d * self.stepWl * self.steps
 		if (d == 1 and wl > self.stopWl) or (d == -1 and wl < self.stopWl):
-			self.stop()
+			self.onStop()
 			return
 		else:
 			self.currentWl = wl
 			self.steps = self.steps + 1
-		I = 1e-9 * (self.stopWl-wl) * (wl-self.startWl)/(self.stopWl-self.startWl)**2
+		I = 1e-9 * (0.01 + (self.stopWl-wl) * (wl-self.startWl)/(self.stopWl-self.startWl)**2)
 		self.dataGenerated.emit(wl, I)
+
+@dataclass(init=False)
+class Data():
+	exp: Experiment
+	expList: List[Experiment]
+	expSelected: int
+	expCheckedList = List[int]
+
+	def __init__(self):
+		self.exp = None
+		self.expList = []
+		self.expSelected = -1
+		self.expCheckedList = []
