@@ -6,6 +6,8 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import *
 import pyqtgraph as pg
 import sys
+import numpy as np
+from scipy.interpolate import interp1d
 from expControl import Ui_expControl
 from resControl import Ui_resControl
 from experiment import Experiment, Data
@@ -23,15 +25,15 @@ class PlotWidget(pg.PlotWidget):
 		QColor(255, 0, 127),
 		QColor(0, 204, 204),
 		QColor(255, 128, 0)]
+	styles = {"color": "black", "font-size": "16px", "font": "Calibri"}
 
 	def __init__(self):
 		super(PlotWidget, self).__init__()
 		self.setBackground("w")
 		self.setMinimumSize(700, 500)
-		styles = {"color": "black", "font-size": "16px", "font": "Calibri"}
 		#self.setTitle("vac", color="b", size="20pt")
-		self.setLabel("left", "Current, A", **styles)
-		self.setLabel("bottom", "Wavelength, nm", **styles)
+		self.setLabel("left", "Current, A", **self.styles)
+		self.setLabel("bottom", "Wavelength, nm", **self.styles)
 		self.addLegend()
 		self.showGrid(x=True, y=True)
 		# self.setXRange(300, 2000)
@@ -61,10 +63,16 @@ class PlotWidget(pg.PlotWidget):
 		self.showItems.append(item)
 		self.addItem(item)
 
+	@Slot(int, list, list)
+	def updateDataIndex(self, index, x, y):
+		print(f"updateDataIndex {index}")
+		self.items[index].setData(x, y)
+		self.getPlotItem().autoRange(items = self.showItems)
+
 	@Slot(list, list)
 	def updateData(self, x, y):
-		self.items[-1].setData(x, y)
-		self.getPlotItem().autoRange(items = self.showItems)
+		print(f"updateData")
+		self.updateDataIndex(-1, x, y)
 
 	@Slot(int)
 	def show(self, i):
@@ -101,6 +109,9 @@ class PlotWidget(pg.PlotWidget):
 			if item in self.showItems:
 				self.showItems.remove(item)
 		self.getPlotItem().autoRange(items = self.showItems)
+
+	def setYLabel(self, label: str):
+		self.setLabel("left", label, **self.styles)
 
 class ExpControl(QWidget, Ui_expControl):
 
@@ -519,12 +530,13 @@ class ResControl(QWidget, Ui_resControl):
 	idVIS = -1
 	idIR = -1
 
-	sig_newCurve   = Signal()
-	sig_updateData = Signal(list, list)
-	sig_show       = Signal(int)
-	sig_hide       = Signal(int)
-	sig_showAll    = Signal()
-	sig_hideAll    = Signal()
+	sig_newCurve        = Signal()
+	sig_updateData      = Signal(list, list)
+	sig_updateDataIndex = Signal(int, list, list)
+	sig_show            = Signal(int)
+	sig_hide            = Signal(int)
+	sig_showAll         = Signal()
+	sig_hideAll         = Signal()
 
 	def __init__(self, data: List[Data], parent=None):
 		super(ResControl, self).__init__(parent)
@@ -559,15 +571,15 @@ class ResControl(QWidget, Ui_resControl):
 		print(f"onChecked")
 		l0 = self.data[0].expCheckedList
 		l1 = self.data[1].expCheckedList
-		if len(l0) > 0: idVIS = l0[-1]
-		else:           idVIS = -1
-		if len(l1) > 0: idIR  = l1[-1]
-		else:           idIR  = -1
+		if len(l0) > 0: self.idVIS = l0[-1]
+		else:           self.idVIS = -1
+		if len(l1) > 0: self.idIR  = l1[-1]
+		else:           self.idIR  = -1
 
 		cl = self.expCheckedList
 		cd = self.data[2].expCheckedList
 
-		a = idVIS >=0 and idIR >= 0
+		a = self.idVIS >=0 and self.idIR >= 0
 		for i in range(len(self.data[2].expList)):
 			it = self.exp_list_view.model().item(i)
 			# it.setCheckState(Qt.Unchecked)
@@ -593,7 +605,19 @@ class ResControl(QWidget, Ui_resControl):
 
 	# !!!!!!!!!!!!!!
 	def save_button_slot(self):
+		print("save_button_slot")
 		self.save_button.setDisabled(True)
+
+		# dateTime = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
+		# fileName = f"{dateTime}_responsivity.dat"
+		# file = QFile(fileName)
+		# file.open(QIODevice.ReadWrite)
+		# file.write(f"# DSR600: Spectrum Responsivity Experiment\n".encode())
+		# file.write(f"# dateTime: {dateTime}\n".encode())
+		# file.write(f"# Columns:\n".encode())
+		# file.write(f"#   1 - wavelength, nm\n".encode())
+		# file.write(f"#   2 - current, A\n".encode())
+		# file.flush()
 
 		self.save_button.setDisabled(False)
 
@@ -613,6 +637,7 @@ class ResControl(QWidget, Ui_resControl):
 		for i in l:
 			self.sig_show.emit(i)
 		self.sig_show.emit(s)
+		self.calc(s)
 
 	@Slot(QItemSelection, QItemSelection)
 	def onSelectionChanged(self, s1: QItemSelection, s2: QItemSelection):
@@ -630,3 +655,87 @@ class ResControl(QWidget, Ui_resControl):
 	@Slot()
 	def onExit(self):
 		return
+
+	def calc(self, index: int):
+		print(f"calc {index}")
+
+		visRes = detVIS
+		irRes  = detIR
+		visSp  = self.data[0].expList[self.idVIS].data
+		irSp   = self.data[1].expList[self.idIR].data
+
+		# VIS
+
+		vrx = np.array(visRes[0])
+		vry = np.array(visRes[1])
+		vsx = np.array(visSp[0])
+		vsy = np.array(visSp[1])
+
+		s1 = np.min(vsx)
+		s2 = np.max(vsx)
+		x = []
+		y = []
+		for i in range(vrx.size):
+			if s1 <= vrx[i] and vrx[i] <= s2 and vrx[i] < 1100.0:
+				x.append(vrx[i])
+				y.append(vry[i])
+
+		vx = np.array(x)
+		vr = np.array(y)
+		vi = interp1d(vsx, vsy, kind='linear')
+		# vs = fi(vx)
+
+		# IR
+
+		irx = np.array(irRes[0])
+		iry = np.array(irRes[1])
+		isx = np.array(irSp[0])
+		isy = np.array(irSp[1])
+
+		s1 = np.min(isx)
+		s2 = np.max(isx)
+		x = []
+		y = []
+		for i in range(irx.size):
+			if s1 <= irx[i] and irx[i] <= s2 and irx[i] >= 1100.0:
+				x.append(irx[i])
+				y.append(iry[i])
+
+		ix = np.array(x)
+		ir = np.array(y)
+		ii = interp1d(isx, isy, kind='linear')
+		# is = fi(ix)
+
+		# SP
+
+		d = self.data[2].expList[index].data
+		sx = np.array(d[0])
+		sy = np.array(d[1])
+		si = interp1d(sx, sy, kind='linear')
+
+		s1 = np.min(sx)
+		s2 = np.max(sx)
+		x = []
+		y = []
+		for i in range(vx.size):
+			if s1 <= vx[i] and vx[i] <= s2 and vx[i] < 1100.0:
+				x.append(vx[i])
+				y.append(vr[i])
+
+		svx = np.array(x)
+		svr = np.array(y)
+
+		x = []
+		y = []
+		for i in range(ix.size):
+			if s1 <= ix[i] and ix[i] <= s2 and ix[i] >= 1100.0:
+				x.append(ix[i])
+				y.append(ir[i])
+
+		six = np.array(x)
+		sir = np.array(y)
+
+		x = np.append(svx, six)
+		y = np.append(svr * si(svx) / vi(svx), sir * si(six) / ii(six))
+
+		self.sig_updateDataIndex.emit(index, x, y)

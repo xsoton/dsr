@@ -51,12 +51,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		p = PlotWidget()
 		e = ResControl(self.data)
 
+		p.setYLabel("Responsivity, A/W")
+
 		self.sig_exit.connect(e.onExit)
 		e.sig_updateData.connect(p.updateData)
 		e.sig_show      .connect(p.show)
 		e.sig_hide      .connect(p.hide)
 		e.sig_showAll   .connect(p.showAll)
 		e.sig_hideAll   .connect(p.hideAll)
+		e.sig_updateDataIndex.connect(p.updateDataIndex)
 
 		l = QHBoxLayout()
 		l.addWidget(p)
@@ -73,7 +76,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		# test
 		exps[2].sig_newCurve.connect(p.newCurve)
-		exps[2].sig_updateData.connect(p.updateData)
 
 	@Slot()
 	def disableTabBar(self):

@@ -123,7 +123,7 @@ class Experiment(QObject):
 		self.file.flush()
 
 		# test!!!
-		self.timer.start(100)
+		self.timer.start(20)
 		# end test!!!
 
 		self.started.emit()
@@ -140,7 +140,7 @@ class Experiment(QObject):
 	def onResume(self):
 		self.status = 1
 		# test!!!
-		self.timer.start(100)
+		self.timer.start(20)
 		# test!!!
 		self.resumed.emit()
 
@@ -179,7 +179,7 @@ class Experiment(QObject):
 		else:
 			self.currentWl = wl
 			self.steps = self.steps + 1
-		I = 1e-9 * (self.stopWl-wl) * (wl-self.startWl)/(self.stopWl-self.startWl)**2
+		I = 1e-9 * (0.01 + (self.stopWl-wl) * (wl-self.startWl)/(self.stopWl-self.startWl)**2)
 		self.dataGenerated.emit(wl, I)
 
 @dataclass(init=False)
