@@ -12,8 +12,7 @@ from detectors import detectorSi as detVIS, detectorInGaAs as detIR
 
 class ResControl(QWidget, Ui_resControl):
 	expSelected: int
-	expCheckedList = []
-	expCalculatedList = []
+	expCheckedList = {}
 
 	idVIS = -1
 	idIR = -1
@@ -37,8 +36,7 @@ class ResControl(QWidget, Ui_resControl):
 		self.exp_list_view.setModel(m)
 		self.exp_list_view.selectionModel().selectionChanged.connect(self.onSelectionChanged)
 		self.expSelected = -1
-		self.expCheckedList = []
-		self.expCalculatedList = []
+		self.expCheckedList = {}
 
 		self.save_button.released.connect(self.save_button_slot)
 
@@ -75,7 +73,7 @@ class ResControl(QWidget, Ui_resControl):
 
 		a = self.idVIS >=0 and self.idIR >= 0
 		for i in range(len(self.data[2].expList)):
-			if i in cl and i not in cd: cl.remove(i)
+			if i in cl and i not in cd: del cl[i]
 
 			it = self.exp_list_view.model().item(i)
 
@@ -114,19 +112,16 @@ class ResControl(QWidget, Ui_resControl):
 		print(f"onItemChanged i = {i}, checked = {c}")
 		s = self.expSelected
 		l = self.expCheckedList
-		lc = self.expCalculatedList
 
 		if i not in l:
 			if c:
-				l.append(i)
-				d = self.calc(i)
-				self.sig_updateDataIndex.emit(i, d[0], d[1])
-
+				l[i] = self.calc(i)
+				self.sig_updateDataIndex.emit(i, l[i][0], l[i][1])
 				if i != s:
 					self.sig_show.emit(i)
 		else:
 			if not c:
-				l.remove(i)
+				del l[i]
 				if i != s:
 					self.sig_hide.emit(i)
 
