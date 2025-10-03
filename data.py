@@ -1,6 +1,9 @@
 from typing import Self, List
 from dataclasses import dataclass
-from PySide6.QtCore import QObject, QReadWriteLock, Signal, Slot, QDateTime, QTimer, QDir, QFile, QIODevice
+from PySide6.QtCore import (Qt, QObject, QReadWriteLock, Signal, Slot,
+	QDateTime, QTimer, QDir, QFile, QIODevice, QRunnable, QThread)
+from device_dsr import DSR
+from device_k6482 import K6482
 
 class Experiment(QObject):
 	type: int = 0 # 0 - Si, 1 - InGaAs, 2 - Sample
@@ -9,7 +12,7 @@ class Experiment(QObject):
 	filename: str = ""
 	currentWl: float = 300
 	steps: int = 0
-	
+
 	sampleName: str = ""
 	startWl: float = 300.0
 	stopWl: float = 2000.0
@@ -28,22 +31,21 @@ class Experiment(QObject):
 	stoped      = Signal()
 	dataChanged = Signal()
 
-	# test!!!
-	dataGenerated = Signal(float, float)
+	sig_next_point  = Signal()
 
-	def __init__(self, etype: int, parent=None):
+	def __init__(self, etype: int, dsr: DSR, k6482: K6482, parent=None):
 		super(Experiment, self).__init__(parent)
 		self.type = etype
 		self.status = 0
 		self.dateTime = ""
 		self.data = [[], []]
+		self.dsr = dsr
+		self.k6482 = k6482
 
 		self.lock = QReadWriteLock()
 		self.reset()
-		# test!!!
-		self.timer = QTimer(self)
-		self.timer.timeout.connect(self.dataGenerate)
-		self.dataGenerated.connect(self.onDataAdd)
+
+		self.sig_next_point.connect(self.next_point, Qt.QueuedConnection)
 
 	def rlock(self):
 		self.lock.lockForRead()
@@ -100,6 +102,7 @@ class Experiment(QObject):
 	@Slot()
 	def onStart(self):
 		self.status = 1
+		self.currentWl = self.startWl
 
 		self.dateTime = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
 		self.fileName = f"{self.dateTime}_{self.sampleName}.dat"
@@ -123,51 +126,37 @@ class Experiment(QObject):
 		self.file.write(f"#   2 - Current, A\n".encode())
 		self.file.flush()
 
-		# test!!!
-		self.timer.start(20)
-		# end test!!!
+		# set parameters
+		self.k6482.set_channel(self.channel)
+		self.k6482.set_output(self.voltageFlag)
+		self.k6482.set_voltage(self.voltage)
+		self.k6482.set_nplc(self.nplc)
+		self.k6482.set_averageFlag(self.averageFlag)
+		self.k6482.set_average(self.average)
+
+		self.sig_next_point.emit()
 
 		self.started.emit()
 
 	@Slot()
 	def onPause(self):
 		self.status = 2
-		# test!!!
-		self.timer.stop()
-		# test!!!
 		self.paused.emit()
 
 	@Slot()
 	def onResume(self):
 		self.status = 1
-		# test!!!
-		self.timer.start(20)
-		# test!!!
+		self.sig_next_point.emit()
 		self.resumed.emit()
 
 	@Slot()
 	def onStop(self):
 		self.status = 3
-		# test!!!
-		self.timer.stop()
-		# test!!!
 		self.file.close()
 		self.stoped.emit()
 
-	@Slot(float, float)
-	def onDataAdd(self, wl: float, current: float):
-		self.wlock()
-		self.data[0].append(wl)
-		self.data[1].append(current)
-		self.unlock()
-		self.currentWl = wl
-		self.file.write(f"{wl:.2f}\t{current:+.9e}\n".encode())
-		self.file.flush()
-		self.dataChanged.emit()
-
-	# test!!!
 	@Slot()
-	def dataGenerate(self):
+	def next_point(self):
 		if self.status > 2:
 			return
 		if self.steps == 0:
@@ -178,10 +167,17 @@ class Experiment(QObject):
 			self.onStop()
 			return
 		else:
-			self.currentWl = wl
+			self.currentWl = self.dsr.set_wl(wl)
 			self.steps = self.steps + 1
-		I = 1e-9 * (0.01 + (self.stopWl-wl) * (wl-self.startWl)/(self.stopWl-self.startWl)**2)
-		self.dataGenerated.emit(wl, I)
+			current = self.k6482.get_current()
+			self.wlock()
+			self.data[0].append(self.currentWl)
+			self.data[1].append(current)
+			self.unlock()
+			self.file.write(f"{wl:.2f}\t{current:+.9e}\n".encode())
+			self.file.flush()
+			self.dataChanged.emit()
+			self.sig_next_point.emit()
 
 @dataclass(init=False)
 class Data():

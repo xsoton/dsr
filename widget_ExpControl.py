@@ -6,6 +6,8 @@ from typing import Self, List
 
 from ui_expControl import Ui_expControl
 from data import Experiment, Data
+from device_dsr import DSR
+from device_k6482 import K6482
 
 class ExpControl(QWidget, Ui_expControl):
 
@@ -28,7 +30,7 @@ class ExpControl(QWidget, Ui_expControl):
 
 	sig_checked = Signal()
 
-	def __init__(self, etype: int, data: Data, parent=None):
+	def __init__(self, etype: int, data: Data, dsr: DSR, k6482: K6482, parent=None):
 		super(ExpControl, self).__init__(parent)
 		self.setupUi(self)
 
@@ -38,7 +40,9 @@ class ExpControl(QWidget, Ui_expControl):
 		self.wl = 550
 		self.shutter = False
 
-		self.data.exp = Experiment(self.etype)
+		self.dsr = dsr
+		self.k6482 = k6482
+		self.data.exp = Experiment(self.etype, self.dsr, self.k6482)
 
 		# initialize filters
 		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
@@ -393,7 +397,7 @@ class ExpControl(QWidget, Ui_expControl):
 		self.data.expList.append(e)
 		self.data.expSelected = len(self.data.expList)-1
 
-		e = Experiment(self.etype)
+		e = Experiment(self.etype, self.dsr, self.k6482)
 		e.fill(self.data.exp)
 		self.sig_start .connect(e.onStart)
 		self.sig_pause .connect(e.onPause)

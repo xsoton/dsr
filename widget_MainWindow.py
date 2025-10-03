@@ -9,6 +9,8 @@ from widget_PlotWidget import PlotWidget
 from widget_ExpControl import ExpControl
 from widget_ResControl import ResControl
 from data import Data
+from device_dsr import DSR
+from device_k6482 import K6482
 
 class MainWindow(QMainWindow, Ui_MainWindow):
 	sig_exit = Signal()
@@ -22,12 +24,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		self.data = [Data(), Data(), Data()]
 
+		self.dsr = DSR("/dev/ttyUSB0")
+		self.dsr.open()
+
+		self.k6482 = K6482("GPIB0::25::INSTR")
+		self.k6482.open()
+
 		n = ["Si", "InGaAs", "Sample", "Result"]
 		exps = []
 
 		for i in range(3):
 			p = PlotWidget()
-			e = ExpControl(i, self.data[i])
+			e = ExpControl(i, self.data[i], self.dsr, self.k6482)
 			exps.append(e)
 
 			self.sig_exit.connect(e.onExit)
@@ -86,6 +94,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.tabs.tabBar().setDisabled(False)
 
 	def closeEvent(self, event):
+		self.dsr.close()
+		self.k6482.close()
 		self.sig_exit.emit()
 		event.accept()
 

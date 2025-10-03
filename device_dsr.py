@@ -1,4 +1,4 @@
-from typing import Self
+from typing import Self, List
 from PySide6.QtCore import QObject, Signal, Slot
 import serial
 
@@ -7,6 +7,8 @@ class DSR(QObject):
 	inited: bool
 	gl = [100.0, 300.0, 1100.0]
 	fl = [100.0, 450.0, 600.0, 800.0, 1400.0, 2000.0]
+
+	error = List[str]
 
 	def __init__(self, filename: str, parent=None):
 		super(DSR, self).__init__(parent)

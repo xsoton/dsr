@@ -41,7 +41,6 @@ class ResControl(QWidget, Ui_resControl):
 		self.save_button.released.connect(self.save_button_slot)
 
 	def addExpToListView(self):
-		print("addExpToListView")
 		e = self.data[2].expList[-1]
 		i = len(self.data[2].expList)-1
 		p = self.exp_list_view.model().invisibleRootItem()
@@ -58,8 +57,6 @@ class ResControl(QWidget, Ui_resControl):
 
 	@Slot()
 	def onChecked(self):
-		print(f"onChecked")
-
 		l0 = self.data[0].expCheckedList
 		if len(l0) > 0: self.idVIS = l0[-1]
 		else:           self.idVIS = -1
@@ -87,7 +84,6 @@ class ResControl(QWidget, Ui_resControl):
 		print("onEnded")
 		self.addExpToListView()
 
-	# !!!!!!!!!!!!!!
 	def save_button_slot(self):
 		print("save_button_slot")
 		self.save_button.setDisabled(True)
@@ -98,7 +94,7 @@ class ResControl(QWidget, Ui_resControl):
 			d2 = self.data[1].expList[self.idIR]
 			d3 = self.data[2].expList[i]
 
-			fileName = f"{dateTime}_responsivity_{i}-{d3.sampleName}.dat"
+			fileName = f"{dateTime}-{d3.sampleName}-responsivity-{i}.dat"
 			file = QFile(fileName)
 			file.open(QIODevice.ReadWrite)
 			file.write(f"# DSR600: Spectrum Responsivity Experiment\n".encode())

@@ -52,7 +52,6 @@ class PlotWidget(pg.PlotWidget):
 
 	@Slot(int, list, list)
 	def updateDataIndex(self, index, x, y):
-		# print(f"updateDataIndex {index}")
 		self.items[index].setData(x, y)
 		self.getPlotItem().autoRange(items = self.showItems)
 
@@ -62,7 +61,6 @@ class PlotWidget(pg.PlotWidget):
 
 	@Slot(int)
 	def show(self, i):
-		print(f"show {i}")
 		item = self.items[i]
 		item.show()
 		if item not in self.showItems:
@@ -71,7 +69,6 @@ class PlotWidget(pg.PlotWidget):
 
 	@Slot()
 	def showAll(self):
-		print(f"showAll")
 		for item in self.items:
 			item.show()
 			if item not in self.showItems:
@@ -80,7 +77,6 @@ class PlotWidget(pg.PlotWidget):
 
 	@Slot(int)
 	def hide(self, i):
-		print(f"hide {i}")
 		item = self.items[i]
 		item.hide()
 		if item in self.showItems:
@@ -89,7 +85,6 @@ class PlotWidget(pg.PlotWidget):
 
 	@Slot()
 	def hideAll(self):
-		print(f"hideAll")
 		for item in self.items:
 			item.hide()
 			if item in self.showItems:

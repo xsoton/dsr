@@ -5,6 +5,13 @@ import pyvisa
 class K6482(QObject):
 	opened: bool
 
+	channel: int
+	voltageFlag: bool
+	voltage: float
+	nplc: int
+	averageFlag: bool
+	average: int
+
 	def __init__(self, filename: str, parent=None):
 		super(K6482, self).__init__(parent)
 		self.filename = filename
@@ -13,7 +20,7 @@ class K6482(QObject):
 		self.rm = pyvisa.ResourceManager('@py')
 
 	def open(self):
-		self.k = self.rm.open_resource('GPIB0::25::INSTR')
+		self.k = self.rm.open_resource(self.filename)
 		self.k.timeout = 25000
 		self.opened = True
 
@@ -24,6 +31,7 @@ class K6482(QObject):
 		self.averageFlag = False
 		self.average = 1
 
+		self.k.write("*rst")
 		self.k.write("output1 off")
 		self.k.write("output2 off")
 		self.k.write("system:azero on")
@@ -45,7 +53,10 @@ class K6482(QObject):
 		self.k.write("source2:voltage 0")
 
 	def close(self):
-		pass
+		if not self.opened:
+			self.error.append("write: not opened")
+		else:
+			self.k.write("*rst")
 
 	def write(self, cmd):
 		if not self.opened:
