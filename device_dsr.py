@@ -35,6 +35,7 @@ class DSR(QObject):
 			buf = f"{cmd}\r".encode()
 			self.s.write(buf)
 			self.s.flush()
+			print(buf)
 
 	def read(self):
 		ret = ""
@@ -42,6 +43,7 @@ class DSR(QObject):
 			self.error.append("read: not opened")
 		else:
 			r = self.s.read_until(expected = b'\r', size = 100)
+			print(r)
 			ret = r[:-1].decode()
 		return ret
 
@@ -304,12 +306,14 @@ class DSR(QObject):
 			self.cmd_set_exitport(ep)
 
 	def set_wl(self, l):
+		print(f"set_wl")
 		g = 1
 		for i in range(len(self.gl)):
 			if l >= self.gl[i]:
 				g = i+1
 			else:
 				break
+		print(f"g = {g}")
 		
 		f = 1
 		for i in range(len(self.fl)):
@@ -317,7 +321,18 @@ class DSR(QObject):
 				f = i+1
 			else:
 				break
+		print(f"f = {f}")
 
 		self.set_grating(g)
 		self.set_filter(f)
 		return self.cmd_moveto(l)
+
+
+if __name__ == '__main__':
+
+	dsr = DSR("/dev/ttyUSB0")
+	dsr.open()
+
+	print(dsr.get_position())
+
+	dsr.close()

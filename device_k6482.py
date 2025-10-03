@@ -69,7 +69,7 @@ class K6482(QObject):
 		if not self.opened:
 			self.error.append("read: not opened")
 		else:
-			ret = k.read()
+			ret = self.k.read()
 		return ret
 
 	def set_channel(self, channel: int):
