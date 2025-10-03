@@ -166,65 +166,62 @@ class ResControl(QWidget, Ui_resControl):
 		print(f"calc {index}")
 
 		visRes = detVIS
-		irRes  = detIR
 		visSp  = self.data[0].expList[self.idVIS].data
-		irSp   = self.data[1].expList[self.idIR].data
 
 		# VIS
+		rx = np.array(visRes[0])
+		ry = np.array(visRes[1])
+		sx = np.array(visSp[0])
+		sy = np.array(visSp[1])
 
-		vrx = np.array(visRes[0])
-		vry = np.array(visRes[1])
-		vsx = np.array(visSp[0])
-		vsy = np.array(visSp[1])
-
-		s1 = np.min(vsx)
-		s2 = np.max(vsx)
+		x1 = np.min(sx)
+		x2 = np.max(sx)
 		x = []
 		y = []
-		for i in range(vrx.size):
-			if s1 <= vrx[i] and vrx[i] <= s2 and vrx[i] < 1100.0:
-				x.append(vrx[i])
-				y.append(vry[i])
+		for i in range(rx.size):
+			if x1 <= rx[i] and rx[i] <= x2 and rx[i] < 1100.0:
+				x.append(rx[i])
+				y.append(ry[i])
 
 		vx = np.array(x)
 		vr = np.array(y)
-		vi = interp1d(vsx, vsy, kind='linear')
-		# vs = fi(vx)
+		vi = interp1d(sx, sy, kind='linear')
 
 		# IR
+		irRes  = detIR
+		irSp   = self.data[1].expList[self.idIR].data
 
-		irx = np.array(irRes[0])
-		iry = np.array(irRes[1])
-		isx = np.array(irSp[0])
-		isy = np.array(irSp[1])
+		rx = np.array(irRes[0])
+		ry = np.array(irRes[1])
+		sx = np.array(irSp[0])
+		sy = np.array(irSp[1])
 
-		s1 = np.min(isx)
-		s2 = np.max(isx)
+		x1 = np.min(sx)
+		x2 = np.max(sx)
 		x = []
 		y = []
-		for i in range(irx.size):
-			if s1 <= irx[i] and irx[i] <= s2 and irx[i] >= 1100.0:
-				x.append(irx[i])
-				y.append(iry[i])
+		for i in range(rx.size):
+			if x1 <= rx[i] and rx[i] <= x2 and rx[i] >= 1100.0:
+				x.append(rx[i])
+				y.append(ry[i])
 
 		ix = np.array(x)
 		ir = np.array(y)
-		ii = interp1d(isx, isy, kind='linear')
-		# is = fi(ix)
+		ii = interp1d(sx, sy, kind='linear')
 
-		# SP
+		# SAM
 
 		d = self.data[2].expList[index].data
 		sx = np.array(d[0])
 		sy = np.array(d[1])
 		si = interp1d(sx, sy, kind='linear')
 
-		s1 = np.min(sx)
-		s2 = np.max(sx)
+		x1 = np.min(sx)
+		x2 = np.max(sx)
 		x = []
 		y = []
 		for i in range(vx.size):
-			if s1 <= vx[i] and vx[i] <= s2 and vx[i] < 1100.0:
+			if x1 <= vx[i] and vx[i] <= x2 and vx[i] < 1100.0:
 				x.append(vx[i])
 				y.append(vr[i])
 
@@ -234,7 +231,7 @@ class ResControl(QWidget, Ui_resControl):
 		x = []
 		y = []
 		for i in range(ix.size):
-			if s1 <= ix[i] and ix[i] <= s2 and ix[i] >= 1100.0:
+			if x1 <= ix[i] and ix[i] <= x2 and ix[i] >= 1100.0:
 				x.append(ix[i])
 				y.append(ir[i])
 
