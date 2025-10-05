@@ -30,6 +30,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.k6482 = K6482("GPIB0::25::INSTR")
 		self.k6482.open()
 
+		self.eThread = QThread()
+		self.eThread.finished.connect(self.eThread.deleteLater)
+		self.eThread.start()
+
+		self.eThread.finished.connect(self.dsr.close)
+		self.eThread.finished.connect(self.dsr.deleteLater)
+		self.eThread.finished.connect(self.k6482.deleteLater)
+
+		self.dsr.moveToThread(self.eThread)
+		self.k6482.moveToThread(self.eThread)
+
 		n = ["Si", "InGaAs", "Sample", "Result"]
 		exps = []
 
@@ -38,7 +49,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			e = ExpControl(i, self.data[i], self.dsr, self.k6482)
 			exps.append(e)
 
-			self.sig_exit.connect(e.onExit)
+			# self.sig_exit.connect(e.onExit)
 			e.sig_newCurve  .connect(p.newCurve)
 			e.sig_updateData.connect(p.updateData)
 			e.sig_show      .connect(p.show)
@@ -94,8 +105,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.tabs.tabBar().setDisabled(False)
 
 	def closeEvent(self, event):
-		self.dsr.close()
-		self.k6482.close()
+		# self.dsr.close()
+		# self.k6482.close()
+		self.eThread.quit()
+		self.eThread.wait()
 		self.sig_exit.emit()
 		event.accept()
 

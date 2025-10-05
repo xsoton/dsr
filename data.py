@@ -31,7 +31,10 @@ class Experiment(QObject):
 	resumed     = Signal()
 	stoped      = Signal()
 	dataChanged = Signal()
-	setWlDone   = Signal(float)
+	# setWlDone   = Signal(float)
+	# shutterDone = Signal(bool)
+
+
 
 	sig_next_point  = Signal()
 
@@ -101,25 +104,26 @@ class Experiment(QObject):
 		self.currentWl   = self.startWl
 		self.steps       = 0
 
-	@Slot()
-	def onSetWl(self, wl: float):
-		wl = self.dsr.set_wl(wl)
-		e = self.dsr.get_error()
-		if len(e) > 0:
-			print("next_point DSR error: {e}")
-			self.dsr.clear_error()
-		self.setWlDone.emit(wl)
+	# @Slot()
+	# def onSetWl(self, wl: float):
+	# 	wl = self.dsr.set_wl(wl)
+	# 	e = self.dsr.get_error()
+	# 	if len(e) > 0:
+	# 		print("next_point DSR error: {e}")
+	# 		self.dsr.clear_error()
+	#	self.setWlDone.emit(wl)
 
-	@Slot()
-	def onShutter(self, s: bool):
-		if s:
-			self.dsr.shutter_open()
-		else:
-			self.dsr.shutter_close()
-		e = self.dsr.get_error()
-		if len(e) > 0:
-			print("next_point DSR error: {e}")
-			self.dsr.clear_error()
+	# @Slot()
+	# def onShutter(self, s: bool):
+	# 	if s:
+	# 		self.dsr.shutter_open()
+	# 	else:
+	# 		self.dsr.shutter_close()
+	# 	e = self.dsr.get_error()
+	# 	if len(e) > 0:
+	# 		print("next_point DSR error: {e}")
+	# 		self.dsr.clear_error()
+	# 	self.shutterDone.emit(s)
 
 	@Slot()
 	def onStart(self):

@@ -7,11 +7,13 @@ class DSR(QObject):
 	inited: bool
 	gl = [100.0, 300.0, 1100.0]
 	fl = [100.0, 450.0, 600.0, 800.0, 1400.0, 2000.0]
-
 	g = 0
 	f = 0
 
 	error = List[str]
+
+	shutterDone = Signal(bool)
+	setWlDone   = Signal(float)
 
 	def __init__(self, filename: str, parent=None):
 		super(DSR, self).__init__(parent)
@@ -310,17 +312,16 @@ class DSR(QObject):
 
 	# === EXPORT ===
 
-	def shutter_open(self):
+	@Slot(bool)
+	def shutter(self, s: bool):
 		i = self.cmd_get_port()
 		i = (i & 16) >> 4
-		if i == 0:
+		if i == 0 and s:
 			self.cmd_set_port(1)
-
-	def shutter_close(self):
-		i = self.cmd_get_port()
-		i = (i & 16) >> 4
-		if i == 1:
+			self.shutterDone.emit(True)
+		elif i == 1 and s:
 			self.cmd_set_port(0)
+			self.shutterDone.emit(False)
 
 	def set_grating(self, g):
 		i = self.cmd_get_grating()
@@ -337,25 +338,29 @@ class DSR(QObject):
 		if i != ep:
 			self.cmd_set_exitport(ep)
 
-	def set_wl(self, l):
+	@Slot(float)
+	def setWl(self, wl: float):
 		g = 1
 		for i in range(len(self.gl)):
-			if l >= self.gl[i]:
+			if wl >= self.gl[i]:
 				g = i+1
 			else:
 				break
 		
 		f = 1
 		for i in range(len(self.fl)):
-			if l >= self.fl[i]:
+			if wl >= self.fl[i]:
 				f = i+1
 			else:
 				break
-		print(f"set_wl {l} g = {g} f = {f}")
+
+		print(f"setWl {wl} g = {g} f = {f}")
 
 		self.set_grating(g)
 		self.set_filter(f)
-		return self.cmd_moveto(l)
+		wl = self.cmd_moveto(wl)
+		self.setWlDone.emit(wl)
+		return wl
 
 	def get_error(self):
 		return self.error
