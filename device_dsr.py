@@ -313,16 +313,15 @@ class DSR(QObject):
 	# === EXPORT ===
 
 	@Slot(bool)
-	def shutter(self, s: bool):
+	def setShutter(self, s: bool):
 		i = self.cmd_get_port()
 		i = (i & 16) >> 4
 		if i == 0 and s:
 			self.cmd_set_port(1)
-			self.shutterDone.emit(True)
-		elif i == 1 and s:
+		elif i == 1 and not s:
 			self.cmd_set_port(0)
-			self.shutterDone.emit(False)
-
+		self.shutterDone.emit(s)
+	
 	def set_grating(self, g):
 		i = self.cmd_get_grating()
 		if i != g:

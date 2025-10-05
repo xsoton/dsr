@@ -214,10 +214,10 @@ class ExpControl(QWidget, Ui_expControl):
 		e.stoped       .connect(self.onStoped)
 		e.dataChanged  .connect(self.onDataChanged)
 
-		self.sig_wl       .connect(self.dsr.setWl)
-		self.sig_shutter  .connect(self.dsr.shutter)
-		self.dsr.setWlDone.connect(self.onSetWlDone)
-		self.dsr.shutter  .connect(self.onShutterDone)
+		self.sig_wl         .connect(self.dsr.setWl)
+		self.sig_shutter    .connect(self.dsr.setShutter)
+		self.dsr.setWlDone  .connect(self.onSetWlDone)
+		self.dsr.shutterDone.connect(self.onShutterDone)
 
 	def sample_edit_new_slot(self):
 		self.data.exp.sampleName = self.sample_edit.text()
@@ -315,6 +315,7 @@ class ExpControl(QWidget, Ui_expControl):
 		self.exp_list_view.setDisabled(False)
 
 	def shutter_check_slot(self):
+		print("shutter_check_slot")
 		self.shutter = self.shutter_check.isChecked()
 		self.start_button .setDisabled(True)
 		self.stop_button  .setDisabled(True)
@@ -325,6 +326,7 @@ class ExpControl(QWidget, Ui_expControl):
 		self.sig_shutter.emit(self.shutter)
 	@Slot(bool)
 	def onShutterDone(self, shutter: bool):
+		print("onShutterDone")
 		self.shutter = shutter
 		self.shutter_check.setCheckState(Qt.Checked if self.shutter else Qt.Unchecked)
 		self.start_button .setDisabled(False)

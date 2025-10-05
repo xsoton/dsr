@@ -46,7 +46,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		for i in range(3):
 			p = PlotWidget()
-			e = ExpControl(i, self.data[i], self.dsr, self.k6482)
+			e = ExpControl(i, self.data[i], self.dsr, self.k6482, self.eThread)
 			exps.append(e)
 
 			# self.sig_exit.connect(e.onExit)
