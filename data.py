@@ -188,7 +188,7 @@ class Experiment(QObject):
 			if (d == 1 and wl > self.stopWl) or (d == -1 and wl < self.stopWl):
 				self.onStop()
 			else:
-				wl = self.dsr.set_wl(wl)
+				wl = self.dsr.setWl(wl)
 				e = self.dsr.get_error()
 				if len(e) > 0:
 					print("next_point DSR error: {e}")

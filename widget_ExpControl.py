@@ -98,6 +98,8 @@ class ExpControl(QWidget, Ui_expControl):
 
 		self.link_signals()
 
+		self.sig_shutter.emit(False)
+
 	def updateExpView(self):
 		e = self.data.exp
 

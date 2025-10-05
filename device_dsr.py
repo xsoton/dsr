@@ -1,4 +1,5 @@
 from typing import Self, List
+import time
 from PySide6.QtCore import QObject, Signal, Slot
 import serial
 
@@ -25,10 +26,11 @@ class DSR(QObject):
 		self.f = 0
 
 	def open(self):
-		self.s = serial.Serial(self.filename, timeout=100)
+		self.s = serial.Serial(self.filename, timeout=0.1)
 		self.s.reset_input_buffer()
 		self.s.reset_output_buffer()
 		self.opened = True
+		time.sleep(1)
 		self.cmd_hello()
 	
 	def close(self):
@@ -51,9 +53,13 @@ class DSR(QObject):
 			self.error.append("read: not opened")
 			return ""
 		else:
-			buf = self.s.read_until(expected = b'\r', size = 100)
+			# buf = self.s.read_until(expected = b'\r', size = 100)
+			while True:
+				buf = self.s.read(100)
+				if len(buf) > 0:
+					break
 			print(f"DSR read: {buf}")
-			return buf[:-1].decode()
+			return buf.decode().strip().split('\r')
 
 	# === CMD ===
 
@@ -61,11 +67,12 @@ class DSR(QObject):
 		if not self.opened:
 			self.error.append("cmd_hello: not opened")
 		else:
+
 			cmd = "HELLO"
 			for i in range(2):
 				self.write(cmd)
 				r = self.read()
-				if r == "OK":
+				if r[-1] == "OK":
 					self.inited = True
 					break
 				else:
@@ -81,10 +88,9 @@ class DSR(QObject):
 			cmd_len = len(cmd)-1
 			self.write(cmd)
 			r = self.read()
-			if r[:cmd_len] == cmd[:cmd_len]:
-				ret = r
-				r = self.read()
-				if r != "OK":
+			if r[0][:cmd_len] == cmd[:cmd_len]:
+				ret = r[0]
+				if r[-1] != "OK":
 					self.error.append(f"cmd_get_systeminfo: '{r}' returned")
 		return ret
 
@@ -102,10 +108,9 @@ class DSR(QObject):
 			cut_len = len(cmdf)
 			self.write(cmdf)
 			r = self.read()
-			if r[:cmd_len] == cmd[:cmd_len]:
-				ret = int(r[cut_len:])
-				r = self.read()
-				if r != "OK":
+			if r[0][:cmd_len] == cmd[:cmd_len]:
+				ret = int(r[0][cut_len:])
+				if r[-1] != "OK":
 					self.error.append(f"cmd_get_info: '{r}' returned")
 		return ret
 
@@ -121,7 +126,7 @@ class DSR(QObject):
 			cmdf = f"{cmd} {addr},{value}"
 			self.write(cmdf)
 			r = self.read()
-			if r != "OK":
+			if r[-1] != "OK":
 				self.error.append(f"cmd_set_info: '{r}' returned")
 
 	def cmd_get_port(self):
@@ -134,10 +139,9 @@ class DSR(QObject):
 			cut_len = cmd_len+1
 			self.write(cmd)
 			r = self.read()
-			if r[:cmd_len] == cmd[:cmd_len]:
-				ret = int(r[cut_len:])
-				r = self.read()
-				if r != "OK":
+			if r[0][:cmd_len] == cmd[:cmd_len]:
+				ret = int(r[0][cut_len:])
+				if r[-1] != "OK":
 					self.error.append(f"cmd_get_port: '{r}' returned")
 		return ret
 
@@ -151,7 +155,7 @@ class DSR(QObject):
 			cmdf = f"{cmd} {value}"
 			self.write(cmdf)
 			r = self.read()
-			if r != "OK":
+			if r[-1] != "OK":
 				self.error.append(f"cmd_set_port: '{r}' returned")
 
 	def cmd_get_grating(self):
@@ -166,10 +170,9 @@ class DSR(QObject):
 			cut_len = cmd_len+1
 			self.write(cmd)
 			r = self.read()
-			if r[:cmd_len] == cmd[:cmd_len]:
-				ret = int(r[cut_len:])
-				r = self.read()
-				if r != "OK":
+			if r[0][:cmd_len] == cmd[:cmd_len]:
+				ret = int(r[0][cut_len:])
+				if r[-1] != "OK":
 					self.error.append(f"cmd_get_grating: '{r}' returned")
 				else:
 					self.g = ret
@@ -185,28 +188,25 @@ class DSR(QObject):
 			cmdf = f"{cmd} {value}"
 			self.write(cmdf)
 			r = self.read()
-			if r == "0":
-				r = self.read()
-				if r != "OK":
-					self.error.append(f"cmd_set_grating: '{r}' returned")
-				else:
-					self.g = value
+			if r[-1] != "OK":
+				self.error.append(f"cmd_set_grating: '{r}' returned")
+			else:
+				self.g = value
 
-	def get_position(self):
+	def cmd_get_position(self):
 		ret = -1.0
 		if not self.opened or not self.inited:
-			self.error.append("get_position: not opened or not inited")
+			self.error.append("cmd_get_position: not opened or not inited")
 		else:
 			cmd = "POSITION?"
 			cmd_len = len(cmd)-1
 			cut_len = cmd_len+1
 			self.write(cmd)
 			r = self.read()
-			if r[:cmd_len] == cmd[:cmd_len]:
-				ret = float(r[cut_len:])
-				r = self.read()
-				if r != "OK":
-					self.error.append(f"get_position: '{r}' returned")
+			if r[0][:cmd_len] == cmd[:cmd_len]:
+				ret = float(r[0][cut_len:])
+				if r[-1] != "OK":
+					self.error.append(f"cmd_get_position: '{r}' returned")
 		return ret
 
 	def cmd_moveto(self, value):
@@ -220,10 +220,9 @@ class DSR(QObject):
 			cmdf = f"{cmd} {value}"
 			self.write(cmdf)
 			r = self.read()
-			if (r[0] != "O") and (r[0] != "E"):
-				ret = float(r)
-				r = self.read()
-				if r != "OK":
+			if (r[0][0] != "O") and (r[0][0] != "E"):
+				ret = float(r[0])
+				if r[-1] != "OK":
 					self.error.append(f"cmd_moveto: '{r}' returned")
 		return ret
 
@@ -238,9 +237,8 @@ class DSR(QObject):
 			cmdf = f"{cmd} {value}"
 			self.write(cmdf)
 			r = self.read()
-			ret = float(r)
-			r = self.read()
-			if r != "OK":
+			ret = float(r[0])
+			if r[-1] != "OK":
 				self.error.append(f"cmd_move: '{r}' returned")
 		return ret
 
@@ -256,10 +254,11 @@ class DSR(QObject):
 			cut_len = cmd_len+1
 			self.write(cmd)
 			r = self.read()
-			if r[:cmd_len] == cmd[:cmd_len]:
-				ret = int(r[cut_len:])
-				r = self.read()
-				if r != "OK":
+			if r[0][0] != "F":
+				r = r[1:]
+			if r[0][:cmd_len] == cmd[:cmd_len]:
+				ret = int(r[0][cut_len:])
+				if r[-1] != "OK":
 					self.error.append(f"cmd_get_filter: '{r}' returned")
 				else:
 					self.f = ret
@@ -275,7 +274,7 @@ class DSR(QObject):
 			cmdf = f"{cmd} {value}"
 			self.write(cmdf)
 			r = self.read()
-			if r != "OK":
+			if r[-0] != "OK":
 				self.error.append(f"cmd_set_filter: '{r}' returned")
 			else:
 				self.f = value
@@ -290,10 +289,9 @@ class DSR(QObject):
 			cut_len = cmd_len+1
 			self.write(cmd)
 			r = self.read()
-			if r[:cmd_len] == cmd[:cmd_len]:
-				ret = int(r[cut_len:])
-				r = self.read()
-				if r != "OK":
+			if r[0][:cmd_len] == cmd[:cmd_len]:
+				ret = int(r[0][cut_len:])
+				if r[-1] != "OK":
 					self.error.append(f"cmd_get_exitport: '{r}' returned")
 		return ret
 
@@ -307,7 +305,7 @@ class DSR(QObject):
 			cmdf = f"{cmd} {value}"
 			self.write(cmdf)
 			r = self.read()
-			if r != "OK":
+			if r[-1] != "OK":
 				self.error.append(f"cmd_set_exitport: '{r}' returned")
 
 	# === EXPORT ===
@@ -320,6 +318,8 @@ class DSR(QObject):
 			self.cmd_set_port(1)
 		elif i == 1 and not s:
 			self.cmd_set_port(0)
+		print(self.error)
+		self.clear_error()
 		self.shutterDone.emit(s)
 	
 	def set_grating(self, g):
@@ -358,6 +358,8 @@ class DSR(QObject):
 		self.set_grating(g)
 		self.set_filter(f)
 		wl = self.cmd_moveto(wl)
+		print(self.error)
+		self.clear_error()
 		self.setWlDone.emit(wl)
 		return wl
 
@@ -373,6 +375,6 @@ if __name__ == '__main__':
 	dsr = DSR("/dev/ttyUSB0")
 	dsr.open()
 
-	print(dsr.get_position())
+	print(dsr.setWl(550))
 
 	dsr.close()
