@@ -31,46 +31,48 @@ class K6482(QObject):
 		self.averageFlag = False
 		self.average = 1
 
-		self.k.write("*rst")
-		self.k.write("output1 off")
-		self.k.write("output2 off")
-		self.k.write("system:azero on")
-		self.k.write("sense1:current:range:auto on")
-		self.k.write("sense1:current:nplcycles 1")
-		self.k.write("sense1:average off")
-		self.k.write("sense1:average:count 1")
-		self.k.write("sense1:average:tcontrol repeat")
-		self.k.write("source1:gconnect 0")
-		self.k.write("source1:voltage:mode fixed")
-		self.k.write("source1:voltage 0")
-		self.k.write("sense2:current:range:auto on")
-		self.k.write("sense2:current:nplcycles 1")
-		self.k.write("sense2:average off")
-		self.k.write("sense2:average:count 1")
-		self.k.write("sense2:average:tcontrol repeat")
-		self.k.write("source2:gconnect 0")
-		self.k.write("source2:voltage:mode fixed")
-		self.k.write("source2:voltage 0")
+		self.write("*rst")
+		self.write("output1 off")
+		self.write("output2 off")
+		self.write("system:azero on")
+		self.write("sense1:current:range:auto on")
+		self.write("sense1:current:nplcycles 1")
+		self.write("sense1:average off")
+		self.write("sense1:average:count 1")
+		self.write("sense1:average:tcontrol repeat")
+		self.write("source1:gconnect 0")
+		self.write("source1:voltage:mode fixed")
+		self.write("source1:voltage 0")
+		self.write("sense2:current:range:auto on")
+		self.write("sense2:current:nplcycles 1")
+		self.write("sense2:average off")
+		self.write("sense2:average:count 1")
+		self.write("sense2:average:tcontrol repeat")
+		self.write("source2:gconnect 0")
+		self.write("source2:voltage:mode fixed")
+		self.write("source2:voltage 0")
 
 	def close(self):
 		if not self.opened:
 			self.error.append("write: not opened")
 		else:
-			self.k.write("*rst")
+			self.write("*rst")
 
 	def write(self, cmd):
 		if not self.opened:
 			self.error.append("write: not opened")
 		else:
+			print(f"K6482 write: {cmd.encode()}")
 			self.k.write(cmd)
 
 	def read(self):
-		ret = ""
 		if not self.opened:
 			self.error.append("read: not opened")
+			return ""
 		else:
-			ret = self.k.read()
-		return ret
+			r = self.k.read()
+			print(f"K6482 read: {r.encode()}")
+			return r
 
 	def set_channel(self, channel: int):
 		if not self.opened:
@@ -81,12 +83,11 @@ class K6482(QObject):
 			self.channel = channel
 
 	def get_channel(self, channel: int):
-		ret = -1
 		if not self.opened:
 			self.error.append("get_channel: not opened")
+			return -1
 		else:
-			ret = self.channel
-		return ret
+			return self.channel
 
 	def set_voltage(self, voltage: float):
 		if not self.opened:
@@ -98,12 +99,11 @@ class K6482(QObject):
 			self.write(f"source{self.channel}:voltage {self.voltage:.3f}")
 
 	def get_voltage(self, voltage: int):
-		ret = -1
 		if not self.opened:
 			self.error.append("get_voltage: not opened")
+			return -1
 		else:
-			ret = self.voltage
-		return ret
+			return self.voltage
 
 	def set_output(self, output: bool):
 		if not self.opened:
@@ -113,12 +113,11 @@ class K6482(QObject):
 			self.write(f"output{self.channel} {"on" if output else "off"}")
 
 	def get_output(self, voltage: int):
-		ret = False
 		if not self.opened:
 			self.error.append("get_output: not opened")
+			return False
 		else:
-			ret = self.voltageFlag
-		return ret
+			return self.voltageFlag
 
 	def set_nplc(self, nplc: float):
 		if not self.opened:
@@ -130,12 +129,11 @@ class K6482(QObject):
 			self.write(f"sense{self.channel}:current:nplcycles {self.nplc:.2f}")
 
 	def get_nplc(self, nplc: int):
-		ret = -1.0
 		if not self.opened:
 			self.error.append("get_nplc: not opened")
+			return -1.0
 		else:
-			ret = self.nplc
-		return ret
+			return self.nplc
 
 	def set_average(self, average: int):
 		if not self.opened:
@@ -147,12 +145,11 @@ class K6482(QObject):
 			self.write(f"sense{self.channel}:average:count {self.average}")
 
 	def get_average(self, average: int):
-		ret = -1
 		if not self.opened:
 			self.error.append("get_average: not opened")
+			return -1
 		else:
-			ret = self.average
-		return ret
+			return self.average
 
 	def set_averageFlag(self, averageFlag: bool):
 		if not self.opened:
@@ -162,15 +159,20 @@ class K6482(QObject):
 			self.write(f"sense{self.channel}:average {"on" if averageFlag else "off"}")
 
 	def get_averageFlag(self, voltage: int):
-		ret = False
 		if not self.opened:
 			self.error.append("get_averageFlag: not opened")
+			return False
 		else:
-			ret = self.averageFlag
-		return ret
+			return self.averageFlag
 
 	def get_current(self):
 		self.write("read?")
 		buf = self.read()
 		ii = buf.split(",")
 		return float(ii[self.channel-1])
+
+	def get_error(self):
+		return self.error
+
+	def clear_error(self):
+		self.error.clear()

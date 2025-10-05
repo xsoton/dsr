@@ -44,6 +44,15 @@ class ExpControl(QWidget, Ui_expControl):
 		self.k6482 = k6482
 		self.data.exp = Experiment(self.etype, self.dsr, self.k6482)
 
+		self.eThread = QThread()
+		self.eThread.finished.connect(self.eThread.deleteLater)
+		self.eThread.start()
+
+		e = self.data.exp
+		self.eThread.finished.connect(e.deleteLater)
+		r = e.moveToThread(self.eThread)
+		print(f"moveToThread is {r}")
+
 		# initialize filters
 		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
 		self.sample_edit.setValidator(QRegularExpressionValidator(re, self))
@@ -87,10 +96,6 @@ class ExpControl(QWidget, Ui_expControl):
 		self.updateActiveView()
 
 		self.link_signals()
-
-		self.eThread = QThread()
-		self.eThread.finished.connect(self.eThread.deleteLater)
-		self.eThread.start()
 
 	def updateExpView(self):
 		e = self.data.exp
@@ -197,20 +202,20 @@ class ExpControl(QWidget, Ui_expControl):
 		self.wl_edit.textEdited.connect(self.wl_edit_edited_slot)
 
 		e = self.data.exp
-		self.sig_reset .connect(self.onReset)
-		self.sig_start .connect(e.onStart)
-		self.sig_pause .connect(e.onPause)
-		self.sig_resume.connect(e.onResume)
-		self.sig_stop  .connect(e.onStop)
-		e.started      .connect(self.onStarted)
-		e.paused       .connect(self.onPaused)
-		e.resumed      .connect(self.onResumed)
-		e.stoped       .connect(self.onStoped)
-		e.dataChanged  .connect(self.onDataChanged)
+		self.sig_reset  .connect(self.onReset)
+		self.sig_start  .connect(e.onStart)
+		self.sig_pause  .connect(e.onPause)
+		self.sig_resume .connect(e.onResume)
+		self.sig_stop   .connect(e.onStop)
+		self.sig_wl     .connect(e.onSetWl, Qt.QueuedConnection)
+		self.sig_shutter.connect(e.onShutter)
+		e.started       .connect(self.onStarted)
+		e.paused        .connect(self.onPaused)
+		e.resumed       .connect(self.onResumed)
+		e.stoped        .connect(self.onStoped)
+		e.dataChanged   .connect(self.onDataChanged)
+		e.setWlDone     .connect(self.onSetWlDone)
 
-		# СИГНАЛЫ ДРАЙВЕРУ!!!
-		# self.sig_wl.connect(self.session.setWl_slot)
-		# self.sig_shutter.connect(self.session.setShutter_slot)
 
 		# БИНД СЛОТА!!!! setWl_done_slot
 
@@ -287,13 +292,27 @@ class ExpControl(QWidget, Ui_expControl):
 	def wl_edit_slot(self):
 		self.wl = float(self.wl_edit.text())
 		self.wl_edit.setStyleSheet("")
+		self.start_button .setDisabled(True)
+		self.stop_button  .setDisabled(True)
+		self.frame_meas   .setDisabled(True)
+		self.frame_amp    .setDisabled(True)
+		self.frame_mono   .setDisabled(True)
+		self.exp_list_view.setDisabled(True)
 		self.sig_wl.emit(self.wl)
 	def wl_edit_edited_slot(self, text):
 		if len(text) == 0 or self.wl != float(text):
 			self.wl_edit.setStyleSheet("background: yellow")
 	@Slot(float)
-	def setWl_done_slot(self, wl: float):
+	def onSetWlDone(self, wl: float):
+		self.wl = wl
+		self.wl_edit.setText(f"{wl:.3f}")
 		self.wl_edit.setStyleSheet("background: green")
+		self.start_button .setDisabled(False)
+		self.stop_button  .setDisabled(False)
+		self.frame_meas   .setDisabled(False)
+		self.frame_amp    .setDisabled(False)
+		self.frame_mono   .setDisabled(False)
+		self.exp_list_view.setDisabled(False)
 
 	def shutter_check_slot(self):
 		self.shutter = self.shutter_check.isChecked()
@@ -304,8 +323,6 @@ class ExpControl(QWidget, Ui_expControl):
 		if len(e.sampleName) == 0: return
 		if e.status == 0:
 			e.status = 1
-			self.eThread.finished.connect(e.deleteLater)
-			e.moveToThread(self.eThread)
 			self.sig_start.emit()
 		elif e.status == 1:
 			e.status = 2
@@ -385,29 +402,38 @@ class ExpControl(QWidget, Ui_expControl):
 	@Slot(int)
 	def onStoped(self):
 		e = self.data.exp
-		self.sig_start .disconnect(e.onStart)
-		self.sig_pause .disconnect(e.onPause)
-		self.sig_resume.disconnect(e.onResume)
-		self.sig_stop  .disconnect(e.onStop)
-		e.started      .disconnect(self.onStarted)
-		e.paused       .disconnect(self.onPaused)
-		e.resumed      .disconnect(self.onResumed)
-		e.stoped       .disconnect(self.onStoped)
-		e.dataChanged  .disconnect(self.onDataChanged)
+		self.sig_start  .disconnect(e.onStart)
+		self.sig_pause  .disconnect(e.onPause)
+		self.sig_resume .disconnect(e.onResume)
+		self.sig_stop   .disconnect(e.onStop)
+		self.sig_wl     .disconnect(e.onSetWl)
+		self.sig_shutter.disconnect(e.onShutter)
+		e.started       .disconnect(self.onStarted)
+		e.paused        .disconnect(self.onPaused)
+		e.resumed       .disconnect(self.onResumed)
+		e.stoped        .disconnect(self.onStoped)
+		e.dataChanged   .disconnect(self.onDataChanged)
+		e.setWlDone     .disconnect(self.onSetWlDone)
 		self.data.expList.append(e)
 		self.data.expSelected = len(self.data.expList)-1
 
 		e = Experiment(self.etype, self.dsr, self.k6482)
 		e.fill(self.data.exp)
-		self.sig_start .connect(e.onStart)
-		self.sig_pause .connect(e.onPause)
-		self.sig_resume.connect(e.onResume)
-		self.sig_stop  .connect(e.onStop)
-		e.started      .connect(self.onStarted)
-		e.paused       .connect(self.onPaused)
-		e.resumed      .connect(self.onResumed)
-		e.stoped       .connect(self.onStoped)
-		e.dataChanged  .connect(self.onDataChanged)
+		self.eThread.finished.connect(e.deleteLater)
+		r = e.moveToThread(self.eThread)
+		print(f"moveToThread is {r}")
+		self.sig_start  .connect(e.onStart)
+		self.sig_pause  .connect(e.onPause)
+		self.sig_resume .connect(e.onResume)
+		self.sig_stop   .connect(e.onStop)
+		self.sig_wl     .connect(e.onSetWl, Qt.QueuedConnection)
+		self.sig_shutter.connect(e.onShutter)
+		e.started       .connect(self.onStarted)
+		e.paused        .connect(self.onPaused)
+		e.resumed       .connect(self.onResumed)
+		e.stoped        .connect(self.onStoped)
+		e.dataChanged   .connect(self.onDataChanged)
+		e.setWlDone     .connect(self.onSetWlDone)
 		self.data.exp = e
 		self.updateActiveView()
 		self.addExpToListView()
