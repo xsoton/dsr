@@ -114,7 +114,7 @@ class Experiment(QObject):
 		self.file.write(f"# startWl: {self.startWl}\n".encode())
 		self.file.write(f"# stopWl: {self.stopWl}\n".encode())
 		self.file.write(f"# stepWl: {self.stepWl}\n".encode())
-		self.file.write(f"# delay: {self.sampleName}\n".encode())
+		self.file.write(f"# delay: {self.delay}\n".encode())
 		self.file.write(f"# channel: {self.channel}\n".encode())
 		self.file.write(f"# voltageFlag: {self.voltageFlag}\n".encode())
 		self.file.write(f"# voltage: {self.voltage}\n".encode())
