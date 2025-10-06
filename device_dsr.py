@@ -334,16 +334,6 @@ class DSR(QObject):
 		print(self.error)
 		self.clear_error()
 		self.shutterDone.emit(self.sh)
-	
-	# def set_grating(self, g):
-	# 	i = self.cmd_get_grating()
-	# 	if i != g:
-	# 		self.cmd_set_grating(g)
-
-	# def set_filter(self, f):
-	# 	i = self.cmd_get_filter()
-	# 	if i != f:
-	# 		self.cmd_set_filter(f)
 
 	def set_exitport(self, ep):
 		i = self.cmd_get_exitport()

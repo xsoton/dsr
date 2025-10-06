@@ -3,6 +3,7 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem, QRegularExpressionV
 from PySide6.QtWidgets import QWidget
 
 from typing import Self, List
+from math import *
 
 from ui_expControl import Ui_expControl
 from data import Experiment, Data
@@ -39,20 +40,23 @@ class ExpControl(QWidget, Ui_expControl):
 		self.data = data
 		self.wl = 550
 		self.shutter = False
+		self.timeout = 500
 
 		self.dsr = dsr
 		self.k6482 = k6482
 		self.data.exp = Experiment(self.etype, self.dsr, self.k6482)
 
 		self.eThread = thread
-		# self.eThread = QThread()
-		# self.eThread.finished.connect(self.eThread.deleteLater)
-		# self.eThread.start()
 
 		e = self.data.exp
 		self.eThread.finished.connect(e.deleteLater)
 		r = e.moveToThread(self.eThread)
 		print(f"moveToThread is {r}")
+
+		self.timer = QTimer()
+		self.timer.timeout.connect(self.k6482.get_current)
+		self.k6482.newCurrent.connect(self.onNewCurrent)
+		self.timer.start(self.timeout)
 
 		# initialize filters
 		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
@@ -388,6 +392,7 @@ class ExpControl(QWidget, Ui_expControl):
 
 	@Slot(int)
 	def onStarted(self):
+		self.timer.stop()
 		self.updateActiveView()
 		i = self.data.expSelected
 		l = self.data.expCheckedList
@@ -397,14 +402,17 @@ class ExpControl(QWidget, Ui_expControl):
 
 	@Slot(int)
 	def onPaused(self):
+		self.timer.start(self.timeout)
 		self.updateActiveView()
 
 	@Slot(int)
 	def onResumed(self):
+		self.timer.stop()
 		self.updateActiveView()
 
 	@Slot(int)
 	def onStoped(self):
+		self.timer.start(self.timeout)
 		e = self.data.exp
 		self.sig_start  .disconnect(e.onStart)
 		self.sig_pause  .disconnect(e.onPause)
@@ -446,6 +454,22 @@ class ExpControl(QWidget, Ui_expControl):
 		y = e.data[1].copy()
 		e.unlock()
 		self.sig_updateData.emit(x, y)
+
+	@Slot(float, float)
+	def onNewCurrent(self, c1: float, c2: float):
+		prefix = ["", "m", "u", "n", "p", "f", "a"]
+
+		p = floor(log10(c1))
+		p = p-p%3
+		i = -int(p/3)
+		i1 = c1 / 10**p
+		self.current1_label.setText(f"{i1:.6f} {prefix[i]}A")
+
+		p = floor(log10(c2))
+		p = p-p%3
+		i = -int(p/3)
+		i2 = c1 / 10**p
+		self.current2_label.setText(f"{i2:.6f} {prefix[i]}A")
 
 	# @Slot()
 	# def onExit(self):
