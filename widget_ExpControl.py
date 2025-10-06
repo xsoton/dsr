@@ -308,13 +308,8 @@ class ExpControl(QWidget, Ui_expControl):
 	def onSetWlDone(self, wl: float):
 		self.wl = wl
 		self.wl_edit.setText(f"{self.wl:.3f}")
-		self.wl_edit.setStyleSheet("background: green")
-		self.start_button .setDisabled(False)
-		self.stop_button  .setDisabled(False)
-		self.frame_meas   .setDisabled(False)
-		self.frame_amp    .setDisabled(False)
-		self.frame_mono   .setDisabled(False)
-		self.exp_list_view.setDisabled(False)
+		self.wl_edit.setStyleSheet("background: green; color: white")
+		self.updateActiveView()
 
 	def shutter_check_slot(self):
 		print("shutter_check_slot")
@@ -331,12 +326,7 @@ class ExpControl(QWidget, Ui_expControl):
 		print("onShutterDone")
 		self.shutter = shutter
 		self.shutter_check.setCheckState(Qt.Checked if self.shutter else Qt.Unchecked)
-		self.start_button .setDisabled(False)
-		self.stop_button  .setDisabled(False)
-		self.frame_meas   .setDisabled(False)
-		self.frame_amp    .setDisabled(False)
-		self.frame_mono   .setDisabled(False)
-		self.exp_list_view.setDisabled(False)
+		self.updateActiveView()
 
 	def start_button_slot(self):
 		e = self.data.exp

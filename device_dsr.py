@@ -10,6 +10,7 @@ class DSR(QObject):
 	fl = [100.0, 450.0, 600.0, 800.0, 1400.0, 2000.0]
 	g = 0
 	f = 0
+	sh = False
 
 	error = List[str]
 
@@ -24,6 +25,7 @@ class DSR(QObject):
 		self.error = []
 		self.g = 0
 		self.f = 0
+		self.sh = False
 
 	def open(self):
 		self.s = serial.Serial(self.filename, timeout=0.1)
@@ -55,9 +57,11 @@ class DSR(QObject):
 		else:
 			# buf = self.s.read_until(expected = b'\r', size = 100)
 			while True:
-				buf = self.s.read(100)
-				if len(buf) > 0:
+				buf1 = self.s.read(100)
+				if len(buf1) > 0:
+					buf2 = self.s.read(100)
 					break
+			buf = buf1 + buf2
 			print(f"DSR read: {buf}")
 			return buf.decode().strip().split('\r')
 
@@ -310,27 +314,36 @@ class DSR(QObject):
 
 	# === EXPORT ===
 
-	@Slot(bool)
-	def setShutter(self, s: bool):
+	@Slot()
+	def getShutter(self):
 		i = self.cmd_get_port()
 		i = (i & 16) >> 4
-		if i == 0 and s:
+		self.sh = (i == 1)
+		self.shutterDone.emit(self.sh)
+
+	@Slot(bool)
+	def setShutter(self, sh: bool):
+		i = self.cmd_get_port()
+		i = (i & 16) >> 4
+		self.sh = (i == 1)
+		if not self.sh and sh:
 			self.cmd_set_port(1)
-		elif i == 1 and not s:
+		elif self.sh and not sh:
 			self.cmd_set_port(0)
+		self.sh = sh
 		print(self.error)
 		self.clear_error()
-		self.shutterDone.emit(s)
+		self.shutterDone.emit(self.sh)
 	
-	def set_grating(self, g):
-		i = self.cmd_get_grating()
-		if i != g:
-			self.cmd_set_grating(g)
+	# def set_grating(self, g):
+	# 	i = self.cmd_get_grating()
+	# 	if i != g:
+	# 		self.cmd_set_grating(g)
 
-	def set_filter(self, f):
-		i = self.cmd_get_filter()
-		if i != f:
-			self.cmd_set_filter(f)
+	# def set_filter(self, f):
+	# 	i = self.cmd_get_filter()
+	# 	if i != f:
+	# 		self.cmd_set_filter(f)
 
 	def set_exitport(self, ep):
 		i = self.cmd_get_exitport()
@@ -355,9 +368,22 @@ class DSR(QObject):
 
 		print(f"setWl {wl} g = {g} f = {f}")
 
-		self.set_grating(g)
-		self.set_filter(f)
+		self.getShutter()
+		sh = self.sh
+		self.cmd_get_grating()
+		self.cmd_get_filter()
+
+		csh = (self.g != g) or (self.f != f)
+
+		if csh:
+			self.setShutter(False)
+		if self.g != g:
+			self.cmd_set_grating(g)
+		if self.f != f:
+			self.cmd_set_filter(f)
 		wl = self.cmd_moveto(wl)
+		if csh:
+			self.setShutter(sh)
 		print(self.error)
 		self.clear_error()
 		self.setWlDone.emit(wl)
