@@ -1,9 +1,10 @@
 from PySide6.QtCore import Qt, QTimer, QThread, Signal, Slot, QRegularExpression, QLocale, QItemSelection, QItemSelectionModel
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QRegularExpressionValidator, QDoubleValidator, QIntValidator
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget, QFileDialog
 
 from typing import Self, List
 from math import *
+import os
 
 from ui_expControl import Ui_expControl
 from data import Experiment, Data
@@ -104,6 +105,8 @@ class ExpControl(QWidget, Ui_expControl):
 
 		self.link_signals()
 
+		self.file_dialog = QFileDialog()
+
 		self.sig_shutter.emit(False)
 
 	def timer_start(self):
@@ -142,6 +145,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_meas.setDisabled(False)
 			self.frame_amp.setDisabled(False)
 			self.frame_mono.setDisabled(False)
+			self.frame_load.setDisabled(False)
 			self.exp_list_view.setDisabled(False)
 		elif e.status == 1:
 			self.start_button.setText("Pause")
@@ -151,6 +155,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_meas.setDisabled(True)
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(True)
+			self.frame_load.setDisabled(True)
 			self.exp_list_view.setDisabled(True)
 		elif e.status == 2:
 			self.start_button.setText("Resume")
@@ -160,6 +165,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_meas.setDisabled(True)
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(False)
+			self.frame_load.setDisabled(False)
 			self.exp_list_view.setDisabled(True)
 		elif e.status == 3:
 			self.start_button.setText("Start")
@@ -169,6 +175,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_meas.setDisabled(True)
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(True)
+			self.frame_load.setDisabled(False)
 			self.exp_list_view.setDisabled(False)
 
 	def addExpToListView(self):
@@ -214,6 +221,8 @@ class ExpControl(QWidget, Ui_expControl):
 		self.average_edit.textEdited.connect(self.average_edit_edited_slot)
 
 		self.wl_edit.textEdited.connect(self.wl_edit_edited_slot)
+
+		self.load_button.released.connect(self.onLoadPressed)
 
 		e = self.data.exp
 		self.sig_reset .connect(self.onReset)
@@ -352,6 +361,18 @@ class ExpControl(QWidget, Ui_expControl):
 		elif e.status == 1: e.status = 3; self.sig_stop.emit()
 		elif e.status == 2: e.status = 3; self.sig_stop.emit()
 
+	def onLoadPressed(self):
+		file_filters = 'Data File (*.dat);; All (*.*)'
+		response = self.file_dialog.getOpenFilesName(
+			parent = self,
+			caption = 'Select a file',
+			directory = os.getcwd(),
+			filter = file_filters,
+			initialFilter = 'Data File (*.dat)'
+		)
+		self.lf = response
+		print(self.lf)
+
 	@Slot(QStandardItem)
 	def onItemChanged(self, item: QStandardItem):
 		i = item.row()
@@ -464,22 +485,7 @@ class ExpControl(QWidget, Ui_expControl):
 
 	@Slot(float, float)
 	def onNewCurrent(self, c1: float, c2: float):
-		prefix = ["", "m", "u", "n", "p", "f", "a"]
-
-		# c = abs(c1)
-		# p = floor(log10(c))
-		# p = p-p%3
-		# i = -int(p/3)
-		# i1 = c1 / 10**p
-		# self.current1_label.setText(f"{i1:+.4f} {prefix[i]}A")
 		self.current1_label.setText(f"{c1:+.5e}")
-
-		# c = abs(c2)
-		# p = floor(log10(c))
-		# p = p-p%3
-		# i = -int(p/3)
-		# i2 = c2 / 10**p
-		# self.current2_label.setText(f"{i2:+.4f} {prefix[i]}A")
 		self.current2_label.setText(f"{c2:+.5e}")
 
 	# @Slot()
