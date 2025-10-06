@@ -42,12 +42,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.k6482.moveToThread(self.eThread)
 
 		n = ["Si", "InGaAs", "Sample", "Result"]
-		exps = []
+		self.exps = []
 
 		for i in range(3):
 			p = PlotWidget()
 			e = ExpControl(i, self.data[i], self.dsr, self.k6482, self.eThread)
-			exps.append(e)
+			self.exps.append(e)
 
 			# self.sig_exit.connect(e.onExit)
 			e.sig_newCurve  .connect(p.newCurve)
@@ -88,13 +88,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		w.setLayout(l)
 		self.tabs.addTab(w, n[3])
 
-		exps[0].sig_checked.connect(e.onChecked)
-		exps[1].sig_checked.connect(e.onChecked)
-		exps[2].sig_checked.connect(e.onChecked)
-		exps[2].sig_ended.connect(e.onEnded)
+		self.tabs.currentChanged.connect(self.onTabChanged)
+
+		self.exps[0].sig_checked.connect(e.onChecked)
+		self.exps[1].sig_checked.connect(e.onChecked)
+		self.exps[2].sig_checked.connect(e.onChecked)
+		self.exps[2].sig_ended.connect(e.onEnded)
 
 		# test
-		exps[2].sig_newCurve.connect(p.newCurve)
+		self.exps[2].sig_newCurve.connect(p.newCurve)
+		
+		self.exps[0].timer_start()
 
 	@Slot()
 	def disableTabBar(self):
@@ -103,6 +107,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	@Slot()
 	def enableTabBar(self):
 		self.tabs.tabBar().setDisabled(False)
+
+	@Slot(int)
+	def onTabChanged(self, index: int):
+		for e in self.exps:
+			e.timer_stop()
+		if index < 3:
+			self.exps[index].timer_start()
 
 	def closeEvent(self, event):
 		# self.dsr.close()

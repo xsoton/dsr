@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QThread, Signal, Slot, QRegularExpression, QLocale, QItemSelection, QItemSelectionModel
+from PySide6.QtCore import Qt, QTimer, QThread, Signal, Slot, QRegularExpression, QLocale, QItemSelection, QItemSelectionModel
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QRegularExpressionValidator, QDoubleValidator, QIntValidator
 from PySide6.QtWidgets import QWidget
 
@@ -31,6 +31,8 @@ class ExpControl(QWidget, Ui_expControl):
 
 	sig_checked = Signal()
 
+	timer: QTimer
+
 	def __init__(self, etype: int, data: Data, dsr: DSR, k6482: K6482, thread: QThread, parent=None):
 		super(ExpControl, self).__init__(parent)
 		self.setupUi(self)
@@ -56,7 +58,7 @@ class ExpControl(QWidget, Ui_expControl):
 		self.timer = QTimer()
 		self.timer.timeout.connect(self.k6482.get_current)
 		self.k6482.newCurrent.connect(self.onNewCurrent)
-		self.timer.start(self.timeout)
+		# self.timer.start(self.timeout)
 
 		# initialize filters
 		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
@@ -103,6 +105,11 @@ class ExpControl(QWidget, Ui_expControl):
 		self.link_signals()
 
 		self.sig_shutter.emit(False)
+
+	def timer_start(self):
+		self.timer.start(self.timeout)
+	def timer_stop(self):
+		self.timer.stop()
 
 	def updateExpView(self):
 		e = self.data.exp
@@ -392,7 +399,7 @@ class ExpControl(QWidget, Ui_expControl):
 
 	@Slot(int)
 	def onStarted(self):
-		self.timer.stop()
+		self.timer_stop()
 		self.updateActiveView()
 		i = self.data.expSelected
 		l = self.data.expCheckedList
@@ -402,17 +409,17 @@ class ExpControl(QWidget, Ui_expControl):
 
 	@Slot(int)
 	def onPaused(self):
-		self.timer.start(self.timeout)
+		self.timer_start()
 		self.updateActiveView()
 
 	@Slot(int)
 	def onResumed(self):
-		self.timer.stop()
+		self.timer_stop()
 		self.updateActiveView()
 
 	@Slot(int)
 	def onStoped(self):
-		self.timer.start(self.timeout)
+		self.timer_start()
 		e = self.data.exp
 		self.sig_start  .disconnect(e.onStart)
 		self.sig_pause  .disconnect(e.onPause)
@@ -459,17 +466,21 @@ class ExpControl(QWidget, Ui_expControl):
 	def onNewCurrent(self, c1: float, c2: float):
 		prefix = ["", "m", "u", "n", "p", "f", "a"]
 
-		p = floor(log10(c1))
-		p = p-p%3
-		i = -int(p/3)
-		i1 = c1 / 10**p
-		self.current1_label.setText(f"{i1:.6f} {prefix[i]}A")
+		# c = abs(c1)
+		# p = floor(log10(c))
+		# p = p-p%3
+		# i = -int(p/3)
+		# i1 = c1 / 10**p
+		# self.current1_label.setText(f"{i1:+.4f} {prefix[i]}A")
+		self.current1_label.setText(f"{c1:+.5e}")
 
-		p = floor(log10(c2))
-		p = p-p%3
-		i = -int(p/3)
-		i2 = c1 / 10**p
-		self.current2_label.setText(f"{i2:.6f} {prefix[i]}A")
+		# c = abs(c2)
+		# p = floor(log10(c))
+		# p = p-p%3
+		# i = -int(p/3)
+		# i2 = c2 / 10**p
+		# self.current2_label.setText(f"{i2:+.4f} {prefix[i]}A")
+		self.current2_label.setText(f"{c2:+.5e}")
 
 	# @Slot()
 	# def onExit(self):
