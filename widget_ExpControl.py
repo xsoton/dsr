@@ -363,12 +363,12 @@ class ExpControl(QWidget, Ui_expControl):
 
 	def onLoadPressed(self):
 		file_filters = 'Data File (*.dat);; All (*.*)'
-		response = self.file_dialog.getOpenFilesName(
+		response = self.file_dialog.getOpenFileNames(
 			parent = self,
 			caption = 'Select a file',
-			directory = os.getcwd(),
+			dir = os.getcwd(),
 			filter = file_filters,
-			initialFilter = 'Data File (*.dat)'
+			selectedFilter = 'Data File (*.dat)'
 		)
 		self.lf = response
 		print(self.lf)
