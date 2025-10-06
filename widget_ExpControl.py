@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QTimer, QThread, Signal, Slot, QRegularExpression, QLocale, QItemSelection, QItemSelectionModel
+from PySide6.QtCore import Qt, QFile, QIODevice, QTimer, QThread, Signal, Slot, QRegularExpression, QLocale, QItemSelection, QItemSelectionModel
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QRegularExpressionValidator, QDoubleValidator, QIntValidator
 from PySide6.QtWidgets import QWidget, QFileDialog
 
@@ -145,7 +145,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_meas.setDisabled(False)
 			self.frame_amp.setDisabled(False)
 			self.frame_mono.setDisabled(False)
-			self.frame_load.setDisabled(False)
+			self.load_button.setDisabled(False)
 			self.exp_list_view.setDisabled(False)
 		elif e.status == 1:
 			self.start_button.setText("Pause")
@@ -155,7 +155,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_meas.setDisabled(True)
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(True)
-			self.frame_load.setDisabled(True)
+			self.load_button.setDisabled(True)
 			self.exp_list_view.setDisabled(True)
 		elif e.status == 2:
 			self.start_button.setText("Resume")
@@ -165,7 +165,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_meas.setDisabled(True)
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(False)
-			self.frame_load.setDisabled(False)
+			self.load_button.setDisabled(False)
 			self.exp_list_view.setDisabled(True)
 		elif e.status == 3:
 			self.start_button.setText("Start")
@@ -175,7 +175,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_meas.setDisabled(True)
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(True)
-			self.frame_load.setDisabled(False)
+			self.load_button.setDisabled(False)
 			self.exp_list_view.setDisabled(False)
 
 	def addExpToListView(self):
@@ -370,8 +370,32 @@ class ExpControl(QWidget, Ui_expControl):
 			filter = file_filters,
 			selectedFilter = 'Data File (*.dat)'
 		)
-		self.lf = response
-		print(self.lf)
+		
+		for fn in response[0]:
+			self.load(fn)
+
+	def load(self, fn: str):
+		print(fn)
+		i = 0
+		f = QFile(fn)
+		if f.open(QIODevice.OpenModeFlag.ReadOnly | QIODevice.OpenModeFlag.Text):
+			print("opened")
+			while not f.atEnd():
+				l = f.readLine().toStdString()
+				if i > 0:
+					l = l.strip()
+					if l[0] == "#":
+						a = l.split(' ')
+						if a[1][:-1] == "Columns":
+							f.readLine()
+							f.readLine()
+						else:
+							print(f"head: {a[1][:-1]} - {a[2]}")
+					else:
+						a = l.split("\t")
+						print(f"data: {a[0]} - {a[1]}")
+				i = i+1
+			f.close()
 
 	@Slot(QStandardItem)
 	def onItemChanged(self, item: QStandardItem):

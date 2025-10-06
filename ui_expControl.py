@@ -24,7 +24,12 @@ class Ui_expControl(object):
     def setupUi(self, expControl):
         if not expControl.objectName():
             expControl.setObjectName(u"expControl")
-        expControl.resize(300, 1032)
+        expControl.resize(300, 660)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(expControl.sizePolicy().hasHeightForWidth())
+        expControl.setSizePolicy(sizePolicy)
         expControl.setMaximumSize(QSize(300, 16777215))
         self.verticalLayout = QVBoxLayout(expControl)
         self.verticalLayout.setObjectName(u"verticalLayout")
@@ -271,25 +276,10 @@ class Ui_expControl(object):
 
         self.verticalLayout.addWidget(self.exp_list_view)
 
-        self.frame_load = QFrame(expControl)
-        self.frame_load.setObjectName(u"frame_load")
-        self.frame_load.setFrameShape(QFrame.Shape.NoFrame)
-        self.frame_load.setFrameShadow(QFrame.Shadow.Raised)
-        self.horizontalLayout_2 = QHBoxLayout(self.frame_load)
-        self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
-        self.horizontalLayout_2.setContentsMargins(0, 0, 0, 0)
-        self.load_button = QPushButton(self.frame_load)
+        self.load_button = QPushButton(expControl)
         self.load_button.setObjectName(u"load_button")
 
-        self.horizontalLayout_2.addWidget(self.load_button)
-
-        self.delete_button = QPushButton(self.frame_load)
-        self.delete_button.setObjectName(u"delete_button")
-
-        self.horizontalLayout_2.addWidget(self.delete_button)
-
-
-        self.verticalLayout.addWidget(self.frame_load)
+        self.verticalLayout.addWidget(self.load_button)
 
         QWidget.setTabOrder(self.sample_edit, self.start_edit)
         QWidget.setTabOrder(self.start_edit, self.stop_edit)
@@ -355,6 +345,5 @@ class Ui_expControl(object):
         self.start_button.setText(QCoreApplication.translate("expControl", u"Start", None))
         self.stop_button.setText(QCoreApplication.translate("expControl", u"Stop", None))
         self.load_button.setText(QCoreApplication.translate("expControl", u"Load", None))
-        self.delete_button.setText(QCoreApplication.translate("expControl", u"Delete", None))
     # retranslateUi
 
