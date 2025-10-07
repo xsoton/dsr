@@ -1,51 +1,51 @@
 from typing import Self, List
 from dataclasses import dataclass
 import time
-from PySide6.QtCore import (Qt, QObject, QReadWriteLock, Signal, Slot,
-	QDateTime, QTimer, QDir, QFile, QIODevice)
+import json
+from PySide6.QtCore import (
+	Qt, QObject, QReadWriteLock, Signal, Slot,
+	QDateTime, QTimer, QDir, QFile, QIODevice
+)
 from device_dsr import DSR
 from device_k6482 import K6482
 
-class Experiment(QObject):
-	type: int = 0 # 0 - Si, 1 - InGaAs, 2 - Sample
-	status: int = 0 # 0 - idle, 1 - started, 2 - paused, 3 - ended
-	dateTime: str = ""
-	filename: str = ""
-	steps: int = 0
-	currentWl: float = 300.0
+# e = {
+# 	"type": 0,
+# 	"status": 0,
+# 	"dateTime": "",
+# 	"fileName": "",
+# 	"steps": 0,
+# 	"currentWl": 0,
+# 	"sampleName": "",
+# 	"startWl": 200,
+# 	"stopWl": 2000,
+# 	"stepWl": 5,
+# 	"delay": 0,
+# 	"channel": 1,
+# 	"voltageFlag": 0,
+# 	"voltage": 0,
+# 	"nplc": 1,
+# 	"averageFlag": 0,
+# 	"average": 1,
+# 	"x": [],
+# 	"y": []
+# }
 
-	sampleName: str = ""
-	startWl: float = 300.0
-	stopWl: float = 2000.0
-	stepWl: float = 5.0
-	delay: float = 0.0
-	channel: int = 1
-	voltageFlag: bool = False
-	voltage: float = 0.0
-	nplc: int = 1
-	averageFlag: bool = False
-	average: int = 1
-
+class Controller(QObject):
 	started     = Signal()
 	paused      = Signal()
 	resumed     = Signal()
 	stoped      = Signal()
 	dataChanged = Signal()
 
-	sig_next_point  = Signal()
-
-	def __init__(self, etype: int, dsr: DSR, k6482: K6482, parent=None):
-		super(Experiment, self).__init__(parent)
-		self.type = etype
-		self.status = 0
-		self.dateTime = ""
-		self.data = [[], []]
+	def __init__(self, dsr: DSR, k6482: K6482, parent=None):
+		super(Controller, self).__init__(parent)
 		self.dsr = dsr
 		self.k6482 = k6482
 
 		self.lock = QReadWriteLock()
-		self.reset()
 
+		self.sig_next_point = Signal()
 		self.sig_next_point.connect(self.next_point, Qt.QueuedConnection)
 
 	def rlock(self):
@@ -57,146 +57,108 @@ class Experiment(QObject):
 	def unlock(self):
 		self.lock.unlock()
 
-	def fill(self, e: Self):
-		self.sampleName  = e.sampleName
-		self.startWl     = e.startWl
-		self.stopWl      = e.stopWl
-		self.stepWl      = e.stepWl
-		self.delay       = e.delay
-		self.channel     = e.channel
-		self.voltageFlag = e.voltageFlag
-		self.voltage     = e.voltage
-		self.nplc        = e.nplc
-		self.averageFlag = e.averageFlag
-		self.average     = e.average
-		self.currentWl   = e.startWl
-		self.steps       = 0
+	def newExperiment(self, type: int):
+		e = {}
+		if type == 0:
+			e["sampleName"]  = "Si"
+			e["startWl"]     = 300
+			e["stopWl"]      = 1100
+			e["stepWl"]      = 5
+			e["channel"]     = 2
+		elif type == 1:
+			e["sampleName"]  = "InGaAs"
+			e["startWl"]     = 900
+			e["stopWl"]      = 1700
+			e["stepWl"]      = 10
+			e["channel"]     = 2
+		elif type == 2:
+			e["sampleName"]  = ""
+			e["startWl"]     = 300
+			e["stopWl"]      = 2000
+			e["stepWl"]      = 5
+			e["channel"]     = 1
+		e["delay"]       = 0
+		e["voltageFlag"] = False
+		e["voltage"]     = 0
+		e["nplc"]        = 1
+		e["averageFlag"] = False
+		e["average"]     = 1
+		e["type"]      = type
+		e["status"]    = 0
+		e["dateTime"]  = ""
+		e["fileName"]  = ""
+		e["steps"]     = 0
+		e["currentWl"] = e["startWl"]
+		e["x"] = []
+		e["y"] = []
+		return e
 
-	def reset(self):
-		if self.type == 0:
-			self.sampleName  = "Si"
-			self.startWl     = 300
-			self.stopWl      = 1100
-			self.stepWl      = 5
-			self.channel     = 2
-		elif self.type == 1:
-			self.sampleName  = "InGaAs"
-			self.startWl     = 900
-			self.stopWl      = 1700
-			self.stepWl      = 10
-			self.channel     = 2
-		elif self.type == 2:
-			self.sampleName  = ""
-			self.startWl     = 300
-			self.stopWl      = 2000
-			self.stepWl      = 5
-			self.channel     = 1
-		self.delay       = 0
-		self.voltageFlag = False
-		self.voltage     = 0
-		self.nplc        = 1
-		self.averageFlag = False
-		self.average     = 1
-		self.currentWl   = self.startWl
-		self.steps       = 0
-
-	@Slot()
-	def onStart(self):
-		self.status = 1
-
-		self.dateTime = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
-		self.fileName = f"{self.dateTime}_{self.sampleName}.dat"
-		self.file = QFile(self.fileName)
-		self.file.open(QIODevice.ReadWrite)
-		self.file.write(f"# DSR600: Spectrum Responsivity Experiment\n".encode())
-		self.file.write(f"# dateTime: {self.dateTime}\n".encode())
-		self.file.write(f"# sampleName: {self.sampleName}\n".encode())
-		self.file.write(f"# startWl: {self.startWl}\n".encode())
-		self.file.write(f"# stopWl: {self.stopWl}\n".encode())
-		self.file.write(f"# stepWl: {self.stepWl}\n".encode())
-		self.file.write(f"# delay: {self.delay}\n".encode())
-		self.file.write(f"# channel: {self.channel}\n".encode())
-		self.file.write(f"# voltageFlag: {self.voltageFlag}\n".encode())
-		self.file.write(f"# voltage: {self.voltage}\n".encode())
-		self.file.write(f"# nplc: {self.nplc}\n".encode())
-		self.file.write(f"# averageFlag: {self.averageFlag}\n".encode())
-		self.file.write(f"# average: {self.average}\n".encode())
-		self.file.write(f"# Columns:\n".encode())
-		self.file.write(f"#   1 - Wavelength, nm\n".encode())
-		self.file.write(f"#   2 - Current, A\n".encode())
-		self.file.flush()
+	@Slot(Dict)
+	def onStart(self, e: Dict):
+		self.e = e
+		self.e["status"] = 1
+		self.e["dateTime"] = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
+		self.e["fileName"] = f"{self.e["dateTime"]}_{self.e["sampleName"]}.json"
 
 		# set parameters
-		self.k6482.set_channel(self.channel)
-		self.k6482.set_output(self.voltageFlag)
-		self.k6482.set_voltage(self.voltage)
-		self.k6482.set_nplc(self.nplc)
-		self.k6482.set_averageFlag(self.averageFlag)
-		self.k6482.set_average(self.average)
+		self.k6482.set_channel(e["channel"])
+		self.k6482.set_output(e["voltageFlag"])
+		self.k6482.set_voltage(e["voltage"])
+		self.k6482.set_nplc(e["nplc"])
+		self.k6482.set_averageFlag(e["averageFlag"])
+		self.k6482.set_average(e["average"])
 
+		# signaling
 		self.sig_next_point.emit()
-
 		self.started.emit()
 
 	@Slot()
 	def onPause(self):
-		self.status = 2
+		self.e["status"] = 2
 		self.paused.emit()
 
 	@Slot()
 	def onResume(self):
-		self.status = 1
+		self.e["status"] = 1
 		self.sig_next_point.emit()
 		self.resumed.emit()
 
 	@Slot()
 	def onStop(self):
-		self.status = 3
-		self.file.close()
+		e = self.e
+		e["status"] = 3
+		with open(e["fileName"], "w") as f:
+			json.dump(e, f, indent="\t")
 		self.stoped.emit()
 
 	@Slot()
 	def next_point(self):
-		if self.status == 1:
-			d = -1 if self.startWl > self.stopWl else 1
-			wl = self.startWl + d * self.stepWl * self.steps
-			if (d == 1 and wl > self.stopWl) or (d == -1 and wl < self.stopWl):
+		e = self.e
+		if e["status"] == 1:
+			d = -1 if e["startWl"] > e["stopWl"] else 1
+			wl = e["startWl"] + d * e["stepWl"] * e["steps"]
+			if (d == 1 and wl > e["stopWl"]) or (d == -1 and wl < e["stopWl"]):
 				self.onStop()
 			else:
 				wl = self.dsr.setWl(wl)
-				e = self.dsr.get_error()
-				if len(e) > 0:
-					print("next_point DSR error: {e}")
+				er = self.dsr.get_error()
+				if len(er) > 0:
+					print(f"next_point DSR error: {er}")
 					self.dsr.clear_error()
-				self.currentWl = wl
+				e["currentWl"] = wl
 
-				time.sleep(self.delay)
+				time.sleep(e["delay"])
 				
 				current = self.k6482.get_current()
-				e = self.k6482.get_error()
-				if len(e) > 0:
-					print("next_point K6482 error: {e}")
+				er = self.k6482.get_error()
+				if len(er) > 0:
+					print(f"next_point K6482 error: {er}")
 					self.k6482.clear_error()
 				
-				self.steps = self.steps + 1
+				e["steps"] = e["steps"] + 1
 				self.wlock()
-				self.data[0].append(wl)
-				self.data[1].append(current)
+				e["x"].append(wl)
+				e["y"].append(current)
 				self.unlock()
-				self.file.write(f"{wl:.2f}\t{current:+.9e}\n".encode())
-				self.file.flush()
 				self.dataChanged.emit()
 				self.sig_next_point.emit()
-
-@dataclass(init=False)
-class Data():
-	exp: Experiment
-	expList: List[Experiment]
-	expSelected: int
-	expCheckedList = List[int]
-
-	def __init__(self):
-		self.exp = None
-		self.expList = []
-		self.expSelected = -1
-		self.expCheckedList = []

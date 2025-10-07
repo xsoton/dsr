@@ -176,7 +176,6 @@ class K6482(QObject):
 		c2 = float(ii[1])
 		self.newCurrent.emit(c1, c2)
 		return c1 if self.channel == 1 else c2
-		# return float(ii[self.channel-1])
 
 	def get_error(self):
 		return self.error

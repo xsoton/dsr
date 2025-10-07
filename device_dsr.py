@@ -314,11 +314,15 @@ class DSR(QObject):
 
 	# === EXPORT ===
 
-	@Slot()
-	def getShutter(self):
+	def get_shutter(self):
 		i = self.cmd_get_port()
 		i = (i & 16) >> 4
 		self.sh = (i == 1)
+		return self.sh
+
+	@Slot()
+	def getShutter(self):
+		self.get_shutter()
 		self.shutterDone.emit(self.sh)
 
 	@Slot(bool)
@@ -339,6 +343,9 @@ class DSR(QObject):
 		i = self.cmd_get_exitport()
 		if i != ep:
 			self.cmd_set_exitport(ep)
+
+	def get_wl(self):
+		return self.cmd_get_position()
 
 	@Slot(float)
 	def setWl(self, wl: float):
