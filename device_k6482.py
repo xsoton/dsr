@@ -64,7 +64,7 @@ class K6482(QObject):
 		if not self.opened:
 			self.error.append("write: not opened")
 		else:
-			print(f"K6482 write: {cmd.encode()}")
+			# print(f"K6482 write: {cmd.encode()}")
 			self.k.write(cmd)
 
 	def read(self):
@@ -73,7 +73,7 @@ class K6482(QObject):
 			return ""
 		else:
 			r = self.k.read()
-			print(f"K6482 read: {r.encode()}")
+			# print(f"K6482 read: {r.encode()}")
 			return r
 
 	def set_channel(self, channel: int):

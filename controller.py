@@ -37,6 +37,10 @@ class Controller(QObject):
 	resumed     = Signal()
 	stoped      = Signal()
 	dataChanged = Signal()
+	
+	sig_next_point = Signal()
+
+	e: dict
 
 	def __init__(self, dsr: DSR, k6482: K6482, parent=None):
 		super(Controller, self).__init__(parent)
@@ -44,8 +48,9 @@ class Controller(QObject):
 		self.k6482 = k6482
 
 		self.lock = QReadWriteLock()
+		self.e = {}
+		self.startedFlag = False
 
-		self.sig_next_point = Signal()
 		self.sig_next_point.connect(self.next_point, Qt.QueuedConnection)
 
 	def rlock(self):
@@ -93,12 +98,12 @@ class Controller(QObject):
 		e["y"] = []
 		return e
 
-	@Slot(Dict)
-	def onStart(self, e: Dict):
-		self.e = e
-		self.e["status"] = 1
-		self.e["dateTime"] = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
-		self.e["fileName"] = f"{self.e["dateTime"]}_{self.e["sampleName"]}.json"
+	@Slot()
+	def onStart(self):
+		e = self.e
+		e["status"] = 1
+		e["dateTime"] = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
+		e["fileName"] = f"{e["dateTime"]}_{e["sampleName"]}.json"
 
 		# set parameters
 		self.k6482.set_channel(e["channel"])
@@ -108,28 +113,33 @@ class Controller(QObject):
 		self.k6482.set_averageFlag(e["averageFlag"])
 		self.k6482.set_average(e["average"])
 
+		self.startedFlag = True
+
 		# signaling
 		self.sig_next_point.emit()
 		self.started.emit()
 
 	@Slot()
 	def onPause(self):
-		self.e["status"] = 2
-		self.paused.emit()
+		if self.startedFlag:
+			self.e["status"] = 2
+			self.paused.emit()
 
 	@Slot()
 	def onResume(self):
-		self.e["status"] = 1
-		self.sig_next_point.emit()
-		self.resumed.emit()
+		if self.startedFlag:
+			self.e["status"] = 1
+			self.sig_next_point.emit()
+			self.resumed.emit()
 
 	@Slot()
 	def onStop(self):
-		e = self.e
-		e["status"] = 3
-		with open(e["fileName"], "w") as f:
-			json.dump(e, f, indent="\t")
-		self.stoped.emit()
+		if self.startedFlag:
+			e = self.e
+			e["status"] = 3
+			with open(e["fileName"], "w") as f:
+				json.dump(e, f, indent="\t")
+			self.stoped.emit()
 
 	@Slot()
 	def next_point(self):

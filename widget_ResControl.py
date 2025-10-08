@@ -7,7 +7,6 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from ui_resControl import Ui_resControl
-from data import Data
 from detectors import detectorSi as detVIS, detectorInGaAs as detIR
 
 class ResControl(QWidget, Ui_resControl):
@@ -25,11 +24,11 @@ class ResControl(QWidget, Ui_resControl):
 	sig_showAll         = Signal()
 	sig_hideAll         = Signal()
 
-	def __init__(self, data: List[Data], parent=None):
+	def __init__(self, exps: List, parent=None):
 		super(ResControl, self).__init__(parent)
 		self.setupUi(self)
 
-		self.data = data
+		self.data = exps
 
 		m = QStandardItemModel()
 		m.itemChanged.connect(self.onItemChanged)
@@ -45,7 +44,7 @@ class ResControl(QWidget, Ui_resControl):
 		i = len(self.data[2].expList)-1
 		p = self.exp_list_view.model().invisibleRootItem()
 
-		it = QStandardItem(f"{i} : {e.sampleName}")
+		it = QStandardItem(f"{i} : {e["sampleName"]}")
 		it.setCheckable(True)
 		it.setSelectable(True)
 		it.setEditable(False)
@@ -94,14 +93,14 @@ class ResControl(QWidget, Ui_resControl):
 			d2 = self.data[1].expList[self.idIR]
 			d3 = self.data[2].expList[i]
 
-			fileName = f"{dateTime}-{d3.sampleName}-responsivity-{i}.dat"
+			fileName = f"{dateTime}-{d3["sampleName"]}-responsivity-{i}.dat"
 			file = QFile(fileName)
 			file.open(QIODevice.ReadWrite)
 			file.write(f"# DSR600: Spectrum Responsivity Experiment\n".encode())
 			file.write(f"# dateTime: {dateTime}\n".encode())
-			file.write(f"# VIS: {d1.fileName}\n".encode())
-			file.write(f"#  IR: {d2.fileName}\n".encode())
-			file.write(f"# SAM: {d3.fileName}\n".encode())
+			file.write(f"# VIS: {d1["fileName"]}\n".encode())
+			file.write(f"#  IR: {d2["fileName"]}\n".encode())
+			file.write(f"# SAM: {d3["fileName"]}\n".encode())
 			file.write(f"# Columns:\n".encode())
 			file.write(f"#   1 - Wavelength, nm\n".encode())
 			file.write(f"#   2 - Responsivity, A/W\n".encode())
@@ -162,13 +161,13 @@ class ResControl(QWidget, Ui_resControl):
 		print(f"calc {index}")
 
 		visRes = detVIS
-		visSp  = self.data[0].expList[self.idVIS].data
+		visSp  = self.data[0].expList[self.idVIS]
 
 		# VIS
 		rx = np.array(visRes[0])
 		ry = np.array(visRes[1])
-		sx = np.array(visSp[0])
-		sy = np.array(visSp[1])
+		sx = np.array(visSp["x"])
+		sy = np.array(visSp["y"])
 
 		x1 = np.min(sx)
 		x2 = np.max(sx)
@@ -185,12 +184,12 @@ class ResControl(QWidget, Ui_resControl):
 
 		# IR
 		irRes  = detIR
-		irSp   = self.data[1].expList[self.idIR].data
+		irSp   = self.data[1].expList[self.idIR]
 
 		rx = np.array(irRes[0])
 		ry = np.array(irRes[1])
-		sx = np.array(irSp[0])
-		sy = np.array(irSp[1])
+		sx = np.array(irSp["x"])
+		sy = np.array(irSp["y"])
 
 		x1 = np.min(sx)
 		x2 = np.max(sx)
@@ -207,9 +206,9 @@ class ResControl(QWidget, Ui_resControl):
 
 		# SAM
 
-		d = self.data[2].expList[index].data
-		sx = np.array(d[0])
-		sy = np.array(d[1])
+		d = self.data[2].expList[index]
+		sx = np.array(d["x"])
+		sy = np.array(d["y"])
 		si = interp1d(sx, sy, kind='linear')
 
 		x1 = np.min(sx)

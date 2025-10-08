@@ -8,11 +8,13 @@ from ui_mainWindow import Ui_MainWindow
 from widget_PlotWidget import PlotWidget
 from widget_ExpControl import ExpControl
 from widget_ResControl import ResControl
+from controller import Controller
 from device_dsr import DSR
 from device_k6482 import K6482
 
 class MainWindow(QMainWindow, Ui_MainWindow):
 	sig_exit = Signal()
+	index: int
 
 	def __init__(self, parent=None):
 		super(MainWindow, self).__init__(parent)
@@ -51,7 +53,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			e = ExpControl(i, self.controller, self.dsr, self.k6482)
 			self.exps.append(e)
 
-			self.sig_exit   .connect(e.onExit)
+			# self.sig_exit   .connect(e.onExit)
 			e.sig_newCurve  .connect(p.newCurve)
 			e.sig_updateData.connect(p.updateData)
 			e.sig_show      .connect(p.show)
@@ -70,7 +72,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.tabs.addTab(w, n[i])
 
 		p = PlotWidget()
-		r = ResControl(self.data)
+		r = ResControl(self.exps)
 
 		p.setYLabel("Responsivity, A/W")
 
@@ -110,18 +112,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	@Slot(int)
 	def onTabChanged(self, index: int):
+		self.index = index
 		for i in range(3):
 			if i == index:
 				self.exps[i].activate()
-				self.exps[i].timer_start()
 			else:
 				self.exps[i].deactivate()
-				self.exps[i].timer_stop()
 
 	def closeEvent(self, event):
+		if self.index < 3:
+			self.exps[self.index].onExit()
+			self.controller.onStop()
 		self.eThread.quit()
 		self.eThread.wait()
-		self.sig_exit.emit()
 		event.accept()
 
 if __name__ == '__main__':
