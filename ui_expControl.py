@@ -24,7 +24,12 @@ class Ui_expControl(object):
     def setupUi(self, expControl):
         if not expControl.objectName():
             expControl.setObjectName(u"expControl")
-        expControl.resize(300, 1032)
+        expControl.resize(300, 660)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(expControl.sizePolicy().hasHeightForWidth())
+        expControl.setSizePolicy(sizePolicy)
         expControl.setMaximumSize(QSize(300, 16777215))
         self.verticalLayout = QVBoxLayout(expControl)
         self.verticalLayout.setObjectName(u"verticalLayout")
@@ -104,17 +109,53 @@ class Ui_expControl(object):
         self.frame_amp.setFrameShadow(QFrame.Shadow.Raised)
         self.gridLayout_15 = QGridLayout(self.frame_amp)
         self.gridLayout_15.setObjectName(u"gridLayout_15")
+        self.voltage_check = QCheckBox(self.frame_amp)
+        self.voltage_check.setObjectName(u"voltage_check")
+
+        self.gridLayout_15.addWidget(self.voltage_check, 2, 0, 1, 1)
+
+        self.label_average = QLabel(self.frame_amp)
+        self.label_average.setObjectName(u"label_average")
+
+        self.gridLayout_15.addWidget(self.label_average, 5, 1, 1, 1)
+
+        self.voltage_edit = QLineEdit(self.frame_amp)
+        self.voltage_edit.setObjectName(u"voltage_edit")
+        self.voltage_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.gridLayout_15.addWidget(self.voltage_edit, 2, 2, 1, 1)
+
         self.nplc_edit = QLineEdit(self.frame_amp)
         self.nplc_edit.setObjectName(u"nplc_edit")
         self.nplc_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.gridLayout_15.addWidget(self.nplc_edit, 2, 2, 1, 1)
+        self.gridLayout_15.addWidget(self.nplc_edit, 3, 2, 1, 1)
+
+        self.label_channel = QLabel(self.frame_amp)
+        self.label_channel.setObjectName(u"label_channel")
+
+        self.gridLayout_15.addWidget(self.label_channel, 0, 1, 1, 1)
+
+        self.label = QLabel(self.frame_amp)
+        self.label.setObjectName(u"label")
+
+        self.gridLayout_15.addWidget(self.label, 1, 1, 1, 1)
+
+        self.label_nplc = QLabel(self.frame_amp)
+        self.label_nplc.setObjectName(u"label_nplc")
+
+        self.gridLayout_15.addWidget(self.label_nplc, 3, 1, 1, 1)
+
+        self.label_voltage = QLabel(self.frame_amp)
+        self.label_voltage.setObjectName(u"label_voltage")
+
+        self.gridLayout_15.addWidget(self.label_voltage, 2, 1, 1, 1)
 
         self.average_edit = QLineEdit(self.frame_amp)
         self.average_edit.setObjectName(u"average_edit")
         self.average_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.gridLayout_15.addWidget(self.average_edit, 4, 2, 1, 1)
+        self.gridLayout_15.addWidget(self.average_edit, 5, 2, 1, 1)
 
         self.frame_channel = QFrame(self.frame_amp)
         self.frame_channel.setObjectName(u"frame_channel")
@@ -140,41 +181,36 @@ class Ui_expControl(object):
 
         self.gridLayout_15.addWidget(self.frame_channel, 0, 2, 1, 1)
 
-        self.label_channel = QLabel(self.frame_amp)
-        self.label_channel.setObjectName(u"label_channel")
-
-        self.gridLayout_15.addWidget(self.label_channel, 0, 1, 1, 1)
-
-        self.voltage_check = QCheckBox(self.frame_amp)
-        self.voltage_check.setObjectName(u"voltage_check")
-
-        self.gridLayout_15.addWidget(self.voltage_check, 1, 0, 1, 1)
-
-        self.label_nplc = QLabel(self.frame_amp)
-        self.label_nplc.setObjectName(u"label_nplc")
-
-        self.gridLayout_15.addWidget(self.label_nplc, 2, 1, 1, 1)
-
-        self.voltage_edit = QLineEdit(self.frame_amp)
-        self.voltage_edit.setObjectName(u"voltage_edit")
-        self.voltage_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.gridLayout_15.addWidget(self.voltage_edit, 1, 2, 1, 1)
-
         self.average_check = QCheckBox(self.frame_amp)
         self.average_check.setObjectName(u"average_check")
 
-        self.gridLayout_15.addWidget(self.average_check, 4, 0, 1, 1)
+        self.gridLayout_15.addWidget(self.average_check, 5, 0, 1, 1)
 
-        self.label_average = QLabel(self.frame_amp)
-        self.label_average.setObjectName(u"label_average")
+        self.frame_current = QFrame(self.frame_amp)
+        self.frame_current.setObjectName(u"frame_current")
+        self.frame_current.setFrameShape(QFrame.Shape.NoFrame)
+        self.frame_current.setFrameShadow(QFrame.Shadow.Raised)
+        self.horizontalLayout = QHBoxLayout(self.frame_current)
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
+        self.current1_label = QLabel(self.frame_current)
+        self.current1_label.setObjectName(u"current1_label")
+        self.current1_label.setStyleSheet(u"color: white; background-color: green")
+        self.current1_label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+        self.current1_label.setMargin(2)
 
-        self.gridLayout_15.addWidget(self.label_average, 4, 1, 1, 1)
+        self.horizontalLayout.addWidget(self.current1_label)
 
-        self.label_voltage = QLabel(self.frame_amp)
-        self.label_voltage.setObjectName(u"label_voltage")
+        self.current2_label = QLabel(self.frame_current)
+        self.current2_label.setObjectName(u"current2_label")
+        self.current2_label.setStyleSheet(u"color: white; background-color: green")
+        self.current2_label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+        self.current2_label.setMargin(2)
 
-        self.gridLayout_15.addWidget(self.label_voltage, 1, 1, 1, 1)
+        self.horizontalLayout.addWidget(self.current2_label)
+
+
+        self.gridLayout_15.addWidget(self.frame_current, 1, 2, 1, 1)
 
 
         self.verticalLayout.addWidget(self.frame_amp)
@@ -240,6 +276,11 @@ class Ui_expControl(object):
 
         self.verticalLayout.addWidget(self.exp_list_view)
 
+        self.load_button = QPushButton(expControl)
+        self.load_button.setObjectName(u"load_button")
+
+        self.verticalLayout.addWidget(self.load_button)
+
         QWidget.setTabOrder(self.sample_edit, self.start_edit)
         QWidget.setTabOrder(self.start_edit, self.stop_edit)
         QWidget.setTabOrder(self.stop_edit, self.step_edit)
@@ -279,20 +320,23 @@ class Ui_expControl(object):
         self.sample_edit.setText("")
         self.sample_edit.setPlaceholderText(QCoreApplication.translate("expControl", u"sample_name", None))
         self.label_sample.setText(QCoreApplication.translate("expControl", u"Sample", None))
+        self.voltage_check.setText("")
+        self.label_average.setText(QCoreApplication.translate("expControl", u"Average", None))
+        self.voltage_edit.setText(QCoreApplication.translate("expControl", u"0", None))
+        self.voltage_edit.setPlaceholderText(QCoreApplication.translate("expControl", u"voltage: \u00b110 V", None))
         self.nplc_edit.setText(QCoreApplication.translate("expControl", u"1", None))
         self.nplc_edit.setPlaceholderText(QCoreApplication.translate("expControl", u"0.01 - 10.00", None))
+        self.label_channel.setText(QCoreApplication.translate("expControl", u"Channel", None))
+        self.label.setText(QCoreApplication.translate("expControl", u"Current", None))
+        self.label_nplc.setText(QCoreApplication.translate("expControl", u"NPLC", None))
+        self.label_voltage.setText(QCoreApplication.translate("expControl", u"Voltage", None))
         self.average_edit.setText(QCoreApplication.translate("expControl", u"1", None))
         self.average_edit.setPlaceholderText(QCoreApplication.translate("expControl", u"1 - 100", None))
         self.channel1_radio.setText(QCoreApplication.translate("expControl", u"1", None))
         self.channel2_radio.setText(QCoreApplication.translate("expControl", u"2", None))
-        self.label_channel.setText(QCoreApplication.translate("expControl", u"Channel", None))
-        self.voltage_check.setText("")
-        self.label_nplc.setText(QCoreApplication.translate("expControl", u"NPLC", None))
-        self.voltage_edit.setText(QCoreApplication.translate("expControl", u"0", None))
-        self.voltage_edit.setPlaceholderText(QCoreApplication.translate("expControl", u"voltage: \u00b110 V", None))
         self.average_check.setText("")
-        self.label_average.setText(QCoreApplication.translate("expControl", u"Average", None))
-        self.label_voltage.setText(QCoreApplication.translate("expControl", u"Voltage", None))
+        self.current1_label.setText(QCoreApplication.translate("expControl", u"0 pA", None))
+        self.current2_label.setText(QCoreApplication.translate("expControl", u"0 pA", None))
         self.label_shutter.setText(QCoreApplication.translate("expControl", u"Shutter", None))
         self.wl_edit.setText("")
         self.wl_edit.setPlaceholderText(QCoreApplication.translate("expControl", u"300 - 2000 nm", None))
@@ -300,5 +344,6 @@ class Ui_expControl(object):
         self.label_setwl.setText(QCoreApplication.translate("expControl", u"Set  \u03bb", None))
         self.start_button.setText(QCoreApplication.translate("expControl", u"Start", None))
         self.stop_button.setText(QCoreApplication.translate("expControl", u"Stop", None))
+        self.load_button.setText(QCoreApplication.translate("expControl", u"Load", None))
     # retranslateUi
 

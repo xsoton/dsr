@@ -26,6 +26,8 @@ class DSR(QObject):
 		self.g = 0
 		self.f = 0
 		self.sh = False
+		self.sha = False
+		self.wl = -1
 
 	def open(self):
 		self.s = serial.Serial(self.filename, timeout=0.1)
@@ -48,7 +50,7 @@ class DSR(QObject):
 			buf = f"{cmd}\r".encode()
 			self.s.write(buf)
 			self.s.flush()
-			print(f"DSR write: {buf}")
+			# print(f"DSR write: {buf}")
 
 	def read(self):
 		if not self.opened:
@@ -62,7 +64,7 @@ class DSR(QObject):
 					buf2 = self.s.read(100)
 					break
 			buf = buf1 + buf2
-			print(f"DSR read: {buf}")
+			# print(f"DSR read: {buf}")
 			return buf.decode().strip().split('\r')
 
 	# === CMD ===
@@ -314,15 +316,15 @@ class DSR(QObject):
 
 	# === EXPORT ===
 
-	@Slot()
-	def getShutter(self):
-		i = self.cmd_get_port()
-		i = (i & 16) >> 4
-		self.sh = (i == 1)
-		self.shutterDone.emit(self.sh)
+	def get_shutter(self):
+		if not self.sha:
+			i = self.cmd_get_port()
+			i = (i & 16) >> 4
+			self.sh = (i == 1)
+			self.sha = True
+		return self.sh
 
-	@Slot(bool)
-	def setShutter(self, sh: bool):
+	def set_shutter(self, sh: bool):
 		i = self.cmd_get_port()
 		i = (i & 16) >> 4
 		self.sh = (i == 1)
@@ -331,24 +333,31 @@ class DSR(QObject):
 		elif self.sh and not sh:
 			self.cmd_set_port(0)
 		self.sh = sh
-		print(self.error)
+		self.sha = True
+		# print(self.error)
 		self.clear_error()
-		self.shutterDone.emit(self.sh)
-	
-	# def set_grating(self, g):
-	# 	i = self.cmd_get_grating()
-	# 	if i != g:
-	# 		self.cmd_set_grating(g)
 
-	# def set_filter(self, f):
-	# 	i = self.cmd_get_filter()
-	# 	if i != f:
-	# 		self.cmd_set_filter(f)
+	@Slot()
+	def getShutter(self):
+		# print("getShutter")
+		self.get_shutter()
+		self.shutterDone.emit(self.sh)
+
+	@Slot(bool)
+	def setShutter(self, sh: bool):
+		# print("setShutter")
+		self.set_shutter(sh)
+		self.shutterDone.emit(self.sh)
 
 	def set_exitport(self, ep):
 		i = self.cmd_get_exitport()
 		if i != ep:
 			self.cmd_set_exitport(ep)
+
+	def get_wl(self):
+		if self.wl < 0:
+			self.wl = self.cmd_get_position()
+		return self.wl
 
 	@Slot(float)
 	def setWl(self, wl: float):
@@ -366,9 +375,9 @@ class DSR(QObject):
 			else:
 				break
 
-		print(f"setWl {wl} g = {g} f = {f}")
+		# print(f"setWl {wl} g = {g} f = {f}")
 
-		self.getShutter()
+		self.get_shutter()
 		sh = self.sh
 		self.cmd_get_grating()
 		self.cmd_get_filter()
@@ -376,18 +385,18 @@ class DSR(QObject):
 		csh = (self.g != g) or (self.f != f)
 
 		if csh:
-			self.setShutter(False)
+			self.set_shutter(False)
 		if self.g != g:
 			self.cmd_set_grating(g)
 		if self.f != f:
 			self.cmd_set_filter(f)
-		wl = self.cmd_moveto(wl)
+		self.wl = self.cmd_moveto(wl)
 		if csh:
-			self.setShutter(sh)
-		print(self.error)
+			self.set_shutter(sh)
+		# print(self.error)
 		self.clear_error()
-		self.setWlDone.emit(wl)
-		return wl
+		self.setWlDone.emit(self.wl)
+		return self.wl
 
 	def get_error(self):
 		return self.error

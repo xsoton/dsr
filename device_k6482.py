@@ -12,6 +12,8 @@ class K6482(QObject):
 	averageFlag: bool
 	average: int
 
+	newCurrent = Signal(float, float)
+
 	def __init__(self, filename: str, parent=None):
 		super(K6482, self).__init__(parent)
 		self.filename = filename
@@ -62,7 +64,7 @@ class K6482(QObject):
 		if not self.opened:
 			self.error.append("write: not opened")
 		else:
-			print(f"K6482 write: {cmd.encode()}")
+			# print(f"K6482 write: {cmd.encode()}")
 			self.k.write(cmd)
 
 	def read(self):
@@ -71,7 +73,7 @@ class K6482(QObject):
 			return ""
 		else:
 			r = self.k.read()
-			print(f"K6482 read: {r.encode()}")
+			# print(f"K6482 read: {r.encode()}")
 			return r
 
 	def set_channel(self, channel: int):
@@ -165,11 +167,15 @@ class K6482(QObject):
 		else:
 			return self.averageFlag
 
+	@Slot()
 	def get_current(self):
 		self.write("read?")
 		buf = self.read()
 		ii = buf.split(",")
-		return float(ii[self.channel-1])
+		c1 = float(ii[0])
+		c2 = float(ii[1])
+		self.newCurrent.emit(c1, c2)
+		return c1 if self.channel == 1 else c2
 
 	def get_error(self):
 		return self.error
