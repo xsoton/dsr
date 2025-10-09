@@ -138,20 +138,10 @@ class Controller(QObject):
 				self.onStop()
 			else:
 				wl = self.dsr.setWl(wl)
-				er = self.dsr.get_error()
-				if len(er) > 0:
-					print(f"next_point DSR error: {er}")
-					self.dsr.clear_error()
-				e["currentWl"] = wl
-
 				time.sleep(e["delay"])
+				current = self.k6482.getCurrent()
 				
-				current = self.k6482.get_current()
-				er = self.k6482.get_error()
-				if len(er) > 0:
-					print(f"next_point K6482 error: {er}")
-					self.k6482.clear_error()
-				
+				e["currentWl"] = wl
 				e["steps"] = e["steps"] + 1
 				self.wlock()
 				e["x"].append(wl)

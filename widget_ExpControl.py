@@ -27,6 +27,14 @@ class ExpControl(QWidget, Ui_expControl):
 	sig_wl      = Signal(float)
 	sig_shutter = Signal(bool)
 
+	sig_getCurrent     = Signal()
+	sig_setChannel     = Signal(int)
+	sig_setVoltageFlag = Signal(bool)
+	sig_setVoltage     = Signal(float)
+	sig_setNplc        = Signal(int)
+	sig_setAverageFlag = Signal(bool)
+	sig_setAverage     = Signal(int)
+
 	sig_newCurve   = Signal()
 	sig_updateData = Signal(list, list)
 	sig_show       = Signal(int)
@@ -45,6 +53,8 @@ class ExpControl(QWidget, Ui_expControl):
 		super(ExpControl, self).__init__(parent)
 		self.setupUi(self)
 
+		self.activated = False
+
 		# starting experiment type
 		self.etype = etype
 		self.controller = controller
@@ -57,10 +67,8 @@ class ExpControl(QWidget, Ui_expControl):
 		self.expSelected = -1
 		self.expCheckedList = []
 
-		self.timeout = 500
-		self.timer = QTimer()
-		self.timer.timeout.connect(self.k6482.get_current)
-		self.k6482.newCurrent.connect(self.onNewCurrent)
+		self.timerActivated = False
+		self.sig_getCurrent.connect(self.k6482.getCurrent)
 
 		# initialize filters
 		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
@@ -94,10 +102,10 @@ class ExpControl(QWidget, Ui_expControl):
 		self.average_edit.setValidator(v)
 
 		self.wl = self.dsr.get_wl()
-		self.wl_edit.setText(f"{self.wl}")
+		self.onSetWlDone(self.wl)
 
 		self.shutter = self.dsr.get_shutter()
-		self.shutter_check.setChecked(self.shutter)
+		self.onShutterDone(self.shutter)
 
 		m = QStandardItemModel()
 		m.itemChanged.connect(self.onItemChanged)
@@ -109,16 +117,16 @@ class ExpControl(QWidget, Ui_expControl):
 
 		self.link_signals()
 
-		self.activated = False
-
 	def timer_start(self):
 		if self.debug: print(f"ExpControl {self.etype} -> timer_start")
-		if self.activated:
-			self.timer.start(self.timeout)
+		if self.activated and not self.timerActivated:
+			self.timerActivated = True
+			self.sig_getCurrent.emit()
+
 	def timer_stop(self):
 		if self.debug: print(f"ExpControl {self.etype} -> timer_stop")
 		if self.activated:
-			self.timer.stop()
+			self.timerActivated = False
 
 	def updateExpView(self):
 		if self.debug: print(f"ExpControl {self.etype} -> updateExpView")
@@ -140,6 +148,15 @@ class ExpControl(QWidget, Ui_expControl):
 		self.average_check.setChecked(e["averageFlag"])
 		self.average_edit.setText(f"{e["average"]}")
 		self.progress_bar.setValue(int(100*(e["currentWl"]-e["startWl"])/(e["stopWl"]-e["startWl"])))
+
+	def disableActiveView(self):
+		self.start_button .setDisabled(True)
+		self.stop_button  .setDisabled(True)
+		self.frame_meas   .setDisabled(True)
+		self.frame_amp    .setDisabled(True)
+		self.frame_mono   .setDisabled(True)
+		self.exp_list_view.setDisabled(True)
+		self.timer_stop()
 
 	def updateActiveView(self):
 		if self.debug: print(f"ExpControl {self.etype} -> updateActiveView")
@@ -236,6 +253,20 @@ class ExpControl(QWidget, Ui_expControl):
 		self.dsr.setWlDone  .connect(self.onSetWlDone)
 		self.dsr.shutterDone.connect(self.onShutterDone)
 
+		self.sig_setChannel          .connect(self.k6482.setChannel)
+		self.sig_setVoltageFlag      .connect(self.k6482.setVoltageFlag)
+		self.sig_setVoltage          .connect(self.k6482.setVoltage)
+		self.sig_setNplc             .connect(self.k6482.setNplc)
+		self.sig_setAverageFlag      .connect(self.k6482.setAverageFlag)
+		self.sig_setAverage          .connect(self.k6482.setAverage)
+		self.k6482.newCurrent        .connect(self.onNewCurrent)
+		self.k6482.setChannelDone    .connect(self.onSetChannelDone)
+		self.k6482.setVoltageFlagDone.connect(self.onSetVoltageFlagDone)
+		self.k6482.setVoltageDone    .connect(self.onSetVoltageDone)
+		self.k6482.setNplcDone       .connect(self.onSetNplcDone)
+		self.k6482.setAverageFlagDone.connect(self.onSetAverageFlagDone)
+		self.k6482.setAverageDone    .connect(self.onSetAverageDone)
+
 	def activate(self):
 		if self.debug: print(f"ExpControl {self.etype} -> activate")
 		c = self.controller
@@ -249,6 +280,24 @@ class ExpControl(QWidget, Ui_expControl):
 			c.resumed      .connect(self.onResumed)
 			c.stoped       .connect(self.onStoped)
 			c.dataChanged  .connect(self.onDataChanged)
+
+			self.disableActiveView()
+			e = self.exp
+			self.channel1_radio.setChecked(e["channel"] == 1)
+			self.channel2_radio.setChecked(e["channel"] == 2)
+			self.voltage_check .setChecked(e["voltageFlag"])
+			self.voltage_edit  .setText(f"{e["voltage"]}")
+			self.nplc_edit     .setText(f"{e["nplc"]}")
+			self.average_check .setChecked(e["averageFlag"])
+			self.average_edit  .setText(f"{e["average"]}")
+
+			self.sig_setChannel    .emit(e["channel"])
+			self.sig_setVoltageFlag.emit(e["voltageFlag"])
+			self.sig_setVoltage    .emit(e["voltage"])
+			self.sig_setNplc       .emit(e["nplc"])
+			self.sig_setAverageFlag.emit(e["averageFlag"])
+			self.sig_setAverage    .emit(e["average"])
+
 			self.activated = True
 			self.timer_start()
 
@@ -307,47 +356,99 @@ class ExpControl(QWidget, Ui_expControl):
 
 	def channel1_radio_slot(self):
 		self.exp["channel"] = 1 if self.channel1_radio.isChecked() else 2
-
+		self.disableActiveView()
+		self.sig_setChannel.emit(self.exp["channel"])
 	def channel2_radio_slot(self):
 		self.exp["channel"] = 2 if self.channel2_radio.isChecked() else 1
+		self.disableActiveView()
+		self.sig_setChannel.emit(self.exp["channel"])
+	@Slot(int)
+	def onSetChannelDone(self, channel: int):
+		if self.debug: print(f"ExpControl {self.etype} -> onSetChannelDone")
+		self.channel1_radio.setChecked(True if channel == 1 else False)
+		if self.activated: self.exp["channel"] = 1 if channel == 1 else 2
+		self.updateActiveView()
+		self.timer_start()
 
 	def voltage_check_slot(self):
 		self.exp["voltageFlag"] = self.voltage_check.isChecked()
+		self.disableActiveView()
+		self.sig_setVoltageFlag.emit(self.exp["voltageFlag"])
+	@Slot(bool)
+	def onSetVoltageFlagDone(self, voltageFlag: bool):
+		if self.debug: print(f"ExpControl {self.etype} -> onSetVoltageFlagDone")
+		self.voltage_check.setChecked(voltageFlag)
+		if self.activated: self.exp["voltageFlag"] = voltageFlag
+		self.updateActiveView()
+		self.timer_start()
 
 	def voltage_edit_slot(self):
 		self.exp["voltage"] = float(self.voltage_edit.text())
 		self.voltage_edit.setStyleSheet("")
+		self.disableActiveView()
+		self.sig_setVoltage.emit(self.exp["voltage"])
 	def voltage_edit_edited_slot(self, text):
 		if len(text) == 0 or self.exp["voltage"] != float(text):
 			self.voltage_edit.setStyleSheet("background: yellow")
+	@Slot(float)
+	def onSetVoltageDone(self, voltage: float):
+		if self.debug: print(f"ExpControl {self.etype} -> onSetVoltageDone")
+		self.voltage_edit.setStyleSheet("background: green; color: white")
+		self.voltage_edit.setText(f"{voltage}")
+		if self.activated: self.exp["voltage"] = voltage
+		self.updateActiveView()
+		self.timer_start()
 
 	def nplc_edit_slot(self):
 		self.exp["nplc"] = int(self.nplc_edit.text())
 		self.nplc_edit.setStyleSheet("")
+		self.disableActiveView()
+		self.sig_setNplc.emit(self.exp["nplc"])
 	def nplc_edit_edited_slot(self, text):
 		if len(text) == 0 or self.exp["nplc"] != int(text):
 			self.nplc_edit.setStyleSheet("background: yellow")
+	@Slot(int)
+	def onSetNplcDone(self, nplc: int):
+		if self.debug: print(f"ExpControl {self.etype} -> onSetNplcDone")
+		self.nplc_edit.setStyleSheet("background: green; color: white")
+		self.nplc_edit.setText(f"{nplc}")
+		if self.activated: self.exp["nplc"] = nplc
+		self.updateActiveView()
+		self.timer_start()
 
 	def average_check_slot(self):
 		self.exp["averageFlag"] = self.average_check.isChecked()
+		self.disableActiveView()
+		self.sig_setAverageFlag.emit(self.exp["averageFlag"])
+	@Slot(bool)
+	def onSetAverageFlagDone(self, averageFlag: bool):
+		if self.debug: print(f"ExpControl {self.etype} -> onSetAverageFlagDone")
+		self.average_check.setChecked(averageFlag)
+		if self.activated: self.exp["averageFlag"] = averageFlag
+		self.updateActiveView()
+		self.timer_start()
 
 	def average_edit_slot(self):
 		self.exp["average"] = int(self.average_edit.text())
 		self.average_edit.setStyleSheet("")
+		self.disableActiveView()
+		self.sig_setAverage.emit(self.exp["average"])
 	def average_edit_edited_slot(self, text):
 		if len(text) == 0 or self.exp["average"] != int(text):
 			self.average_edit.setStyleSheet("background: yellow")
+	@Slot(int)
+	def onSetAverageDone(self, average: int):
+		if self.debug: print(f"ExpControl {self.etype} -> onSetAverageDone")
+		self.average_edit.setStyleSheet("background: green; color: white")
+		self.average_edit.setText(f"{average}")
+		if self.activated: self.exp["average"] = average
+		self.updateActiveView()
+		self.timer_start()
 
 	def wl_edit_slot(self):
 		self.wl = float(self.wl_edit.text())
 		self.wl_edit.setStyleSheet("")
-		self.start_button .setDisabled(True)
-		self.stop_button  .setDisabled(True)
-		self.frame_meas   .setDisabled(True)
-		self.frame_amp    .setDisabled(True)
-		self.frame_mono   .setDisabled(True)
-		self.exp_list_view.setDisabled(True)
-		self.timer_stop()
+		self.disableActiveView()
 		self.sig_wl.emit(self.wl)
 	def wl_edit_edited_slot(self, text):
 		if len(text) == 0 or self.wl != float(text):
@@ -363,13 +464,7 @@ class ExpControl(QWidget, Ui_expControl):
 
 	def shutter_check_slot(self):
 		self.shutter = self.shutter_check.isChecked()
-		self.start_button .setDisabled(True)
-		self.stop_button  .setDisabled(True)
-		self.frame_meas   .setDisabled(True)
-		self.frame_amp    .setDisabled(True)
-		self.frame_mono   .setDisabled(True)
-		self.exp_list_view.setDisabled(True)
-		self.timer_stop()
+		self.disableActiveView()
 		self.sig_shutter.emit(self.shutter)
 	@Slot(bool)
 	def onShutterDone(self, shutter: bool):
@@ -554,6 +649,8 @@ class ExpControl(QWidget, Ui_expControl):
 		if self.debug: print(f"ExpControl {self.etype} -> onNewCurrent {c1}, {c2}")
 		self.current1_label.setText(f"{c1:+.5e}")
 		self.current2_label.setText(f"{c2:+.5e}")
+		if self.timerActivated:
+			self.sig_getCurrent.emit()
 
 	@Slot()
 	def onExit(self):

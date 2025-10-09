@@ -365,6 +365,13 @@ class DSR(QObject):
 			self.wl = self.cmd_get_position()
 		return self.wl
 
+	@Slot()
+	def getWl(self):
+		if self.debug: print(f"DSR -> getWl")
+		self.get_wl()
+		self.setWlDone.emit(self.wl)
+		return self.wl
+
 	@Slot(float)
 	def setWl(self, wl: float):
 		if self.debug: print(f"DSR -> setWl {wl}")
