@@ -14,6 +14,8 @@ from device_dsr import DSR
 from device_k6482 import K6482
 
 class MainWindow(QMainWindow, Ui_MainWindow):
+	debug = False
+
 	sig_exit = Signal()
 	index: int
 
@@ -24,6 +26,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.move(20, 20)
 		self.centralwidget.resize(200, 200)
 		self.setWindowIcon(QIcon("img/icon-64.png"))
+
+		pg.setConfigOptions(antialias=True)
 
 		self.dsr = DSR("/dev/ttyUSB0")
 		self.dsr.open()
@@ -106,14 +110,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	@Slot()
 	def disableTabBar(self):
+		if self.debug: print("MainWindow -> disableTabBar")
 		self.tabs.tabBar().setDisabled(True)
 
 	@Slot()
 	def enableTabBar(self):
+		if self.debug: print("MainWindow -> enableTabBar")
 		self.tabs.tabBar().setDisabled(False)
 
 	@Slot(int)
 	def onTabChanged(self, index: int):
+		if self.debug: print(f"MainWindow -> onTabChanged {index}")
 		self.index = index
 		for i in range(3):
 			if i == index:
@@ -122,6 +129,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 				self.exps[i].deactivate()
 
 	def closeEvent(self, event):
+		if self.debug: print(f"MainWindow -> closeEvent index = {self.index}")
 		if self.index < 3:
 			self.exps[self.index].onExit()
 			self.controller.onStop()

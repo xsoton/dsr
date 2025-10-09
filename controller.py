@@ -9,29 +9,9 @@ from PySide6.QtCore import (
 from device_dsr import DSR
 from device_k6482 import K6482
 
-# e = {
-# 	"type": 0,
-# 	"status": 0,
-# 	"dateTime": "",
-# 	"fileName": "",
-# 	"steps": 0,
-# 	"currentWl": 0,
-# 	"sampleName": "",
-# 	"startWl": 200,
-# 	"stopWl": 2000,
-# 	"stepWl": 5,
-# 	"delay": 0,
-# 	"channel": 1,
-# 	"voltageFlag": 0,
-# 	"voltage": 0,
-# 	"nplc": 1,
-# 	"averageFlag": 0,
-# 	"average": 1,
-# 	"x": [],
-# 	"y": []
-# }
-
 class Controller(QObject):
+	debug = False
+
 	started     = Signal()
 	paused      = Signal()
 	resumed     = Signal()
@@ -44,6 +24,7 @@ class Controller(QObject):
 
 	def __init__(self, dsr: DSR, k6482: K6482, parent=None):
 		super(Controller, self).__init__(parent)
+
 		self.dsr = dsr
 		self.k6482 = k6482
 
@@ -63,6 +44,7 @@ class Controller(QObject):
 		self.lock.unlock()
 
 	def newExperiment(self, type: int):
+		if self.debug: print(f"Controller -> newExperiment {type}")
 		e = {}
 		if type == 0:
 			e["sampleName"]  = "Si"
@@ -100,6 +82,7 @@ class Controller(QObject):
 
 	@Slot()
 	def onStart(self):
+		if self.debug: print(f"Controller -> onStart")
 		e = self.e
 		e["status"] = 1
 		e["dateTime"] = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
@@ -121,12 +104,14 @@ class Controller(QObject):
 
 	@Slot()
 	def onPause(self):
+		if self.debug: print(f"Controller -> onPause")
 		if self.startedFlag:
 			self.e["status"] = 2
 			self.paused.emit()
 
 	@Slot()
 	def onResume(self):
+		if self.debug: print(f"Controller -> onResume")
 		if self.startedFlag:
 			self.e["status"] = 1
 			self.sig_next_point.emit()
@@ -134,6 +119,7 @@ class Controller(QObject):
 
 	@Slot()
 	def onStop(self):
+		if self.debug: print(f"Controller -> onStop")
 		if self.startedFlag:
 			e = self.e
 			e["status"] = 3
@@ -143,6 +129,7 @@ class Controller(QObject):
 
 	@Slot()
 	def next_point(self):
+		if self.debug: print(f"Controller -> next_point")
 		e = self.e
 		if e["status"] == 1:
 			d = -1 if e["startWl"] > e["stopWl"] else 1

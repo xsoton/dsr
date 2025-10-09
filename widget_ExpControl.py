@@ -1,8 +1,10 @@
-from PySide6.QtCore import Qt, QFile, QIODevice, QTimer, QThread, Signal, Slot, QRegularExpression, QLocale, QItemSelection, QItemSelectionModel
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QRegularExpressionValidator, QDoubleValidator, QIntValidator
+from PySide6.QtCore import (Qt, QTimer, Signal, Slot,
+	QRegularExpression, QLocale, QItemSelection, QItemSelectionModel)
+from PySide6.QtGui import (QStandardItemModel, QStandardItem,
+	QRegularExpressionValidator, QDoubleValidator, QIntValidator)
 from PySide6.QtWidgets import QWidget, QFileDialog
 
-from typing import Self, List
+from typing import List
 from math import *
 import os
 import json
@@ -13,6 +15,7 @@ from device_dsr import DSR
 from device_k6482 import K6482
 
 class ExpControl(QWidget, Ui_expControl):
+	debug = False
 
 	sig_reset  = Signal()
 	sig_start  = Signal()
@@ -32,8 +35,6 @@ class ExpControl(QWidget, Ui_expControl):
 	sig_hideAll    = Signal()
 
 	sig_checked = Signal()
-
-	timer: QTimer
 
 	exp: dict
 	expList: List[dict]
@@ -111,13 +112,16 @@ class ExpControl(QWidget, Ui_expControl):
 		self.activated = False
 
 	def timer_start(self):
+		if self.debug: print(f"ExpControl {self.etype} -> timer_start")
 		if self.activated:
 			self.timer.start(self.timeout)
 	def timer_stop(self):
+		if self.debug: print(f"ExpControl {self.etype} -> timer_stop")
 		if self.activated:
 			self.timer.stop()
 
 	def updateExpView(self):
+		if self.debug: print(f"ExpControl {self.etype} -> updateExpView")
 		e = self.exp
 
 		self.sample_edit.setText(e["sampleName"])
@@ -138,7 +142,7 @@ class ExpControl(QWidget, Ui_expControl):
 		self.progress_bar.setValue(int(100*(e["currentWl"]-e["startWl"])/(e["stopWl"]-e["startWl"])))
 
 	def updateActiveView(self):
-		# print("updateActiveView")
+		if self.debug: print(f"ExpControl {self.etype} -> updateActiveView")
 		e = self.exp
 		# 0 - idle, 1 - started, 2 - paused, 3 - ended
 		if e["status"] == 0:
@@ -183,6 +187,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.exp_list_view.setDisabled(False)
 
 	def addExpToListView(self):
+		if self.debug: print(f"ExpControl {self.etype} -> addExpToListView")
 		e = self.expList[-1]
 		i = len(self.expList)-1
 		p = self.exp_list_view.model().invisibleRootItem()
@@ -195,6 +200,7 @@ class ExpControl(QWidget, Ui_expControl):
 		self.exp_list_view.selectionModel().select(it.index(), QItemSelectionModel.SelectionFlag.ClearAndSelect)
 
 	def link_signals(self):
+		if self.debug: print(f"ExpControl {self.etype} -> link_signals")
 		self.sample_edit   .returnPressed.connect(self.sample_edit_new_slot)
 		self.sample_edit   .inputRejected.connect(self.sample_edit_rejected_slot)
 		self.sample_edit   .textEdited   .connect(self.sample_edit_edited_slot)
@@ -223,15 +229,17 @@ class ExpControl(QWidget, Ui_expControl):
 		self.stop_button   .released     .connect(self.stop_button_slot)
 		self.load_button   .released     .connect(self.onLoadPressed)
 
+		self.sig_reset .connect(self.onReset)
+
 		self.sig_wl         .connect(self.dsr.setWl)
 		self.sig_shutter    .connect(self.dsr.setShutter)
 		self.dsr.setWlDone  .connect(self.onSetWlDone)
 		self.dsr.shutterDone.connect(self.onShutterDone)
 
 	def activate(self):
+		if self.debug: print(f"ExpControl {self.etype} -> activate")
 		c = self.controller
 		if not self.activated:
-			self.sig_reset .connect(self.onReset)
 			self.sig_start .connect(c.onStart)
 			self.sig_pause .connect(c.onPause)
 			self.sig_resume.connect(c.onResume)
@@ -245,9 +253,9 @@ class ExpControl(QWidget, Ui_expControl):
 			self.timer_start()
 
 	def deactivate(self):
+		if self.debug: print(f"ExpControl {self.etype} -> deactivate")
 		c = self.controller
 		if self.activated:
-			self.sig_reset .disconnect(self.onReset)
 			self.sig_start .disconnect(c.onStart)
 			self.sig_pause .disconnect(c.onPause)
 			self.sig_resume.disconnect(c.onResume)
@@ -257,8 +265,8 @@ class ExpControl(QWidget, Ui_expControl):
 			c.resumed      .disconnect(self.onResumed)
 			c.stoped       .disconnect(self.onStoped)
 			c.dataChanged  .disconnect(self.onDataChanged)
-			self.activated = False
 			self.timer_stop()
+			self.activated = False
 
 	def sample_edit_new_slot(self):
 		self.exp["sampleName"] = self.sample_edit.text()
@@ -346,6 +354,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.wl_edit.setStyleSheet("background: yellow")
 	@Slot(float)
 	def onSetWlDone(self, wl: float):
+		if self.debug: print(f"ExpControl {self.etype} -> onSetWlDone {wl}")
 		self.wl = wl
 		self.wl_edit.setText(f"{self.wl:.3f}")
 		self.wl_edit.setStyleSheet("background: green; color: white")
@@ -353,7 +362,6 @@ class ExpControl(QWidget, Ui_expControl):
 		self.timer_start()
 
 	def shutter_check_slot(self):
-		# print("shutter_check_slot")
 		self.shutter = self.shutter_check.isChecked()
 		self.start_button .setDisabled(True)
 		self.stop_button  .setDisabled(True)
@@ -365,7 +373,7 @@ class ExpControl(QWidget, Ui_expControl):
 		self.sig_shutter.emit(self.shutter)
 	@Slot(bool)
 	def onShutterDone(self, shutter: bool):
-		# print("onShutterDone")
+		if self.debug: print(f"ExpControl {self.etype} -> onShutterDone {shutter}")
 		self.shutter = shutter
 		self.shutter_check.setCheckState(Qt.Checked if self.shutter else Qt.Unchecked)
 		self.updateActiveView()
@@ -392,6 +400,7 @@ class ExpControl(QWidget, Ui_expControl):
 		elif e["status"] == 2: self.sig_stop.emit()
 
 	def onLoadPressed(self):
+		if self.debug: print(f"ExpControl {self.etype} -> onLoadPressed")
 		file_filters = 'JSON File (*.json);; All (*.*)'
 		response = self.file_dialog.getOpenFileNames(
 			parent = self,
@@ -405,7 +414,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.load(fn)
 
 	def load(self, fn: str):
-		# print(fn)
+		if self.debug: print(f"ExpControl {self.etype} -> load")
 		with open(fn, "r") as f:
 			en = json.load(f)
 			a = True
@@ -421,6 +430,7 @@ class ExpControl(QWidget, Ui_expControl):
 
 	@Slot(QStandardItem)
 	def onItemChanged(self, item: QStandardItem):
+		if self.debug: print(f"ExpControl {self.etype} -> onItemChanged")
 		i = item.row()
 		c = (item.checkState() == Qt.Checked)
 		s = self.expSelected
@@ -441,6 +451,7 @@ class ExpControl(QWidget, Ui_expControl):
 
 	@Slot(QItemSelection, QItemSelection)
 	def onSelectionChanged(self, s1: QItemSelection, s2: QItemSelection):
+		if self.debug: print(f"ExpControl {self.etype} -> onSelectionChanged")
 		l = self.expCheckedList
 
 		for idx in s1.indexes():
@@ -473,12 +484,14 @@ class ExpControl(QWidget, Ui_expControl):
 
 	@Slot(int)
 	def onReset(self):
+		if self.debug: print(f"ExpControl {self.etype} -> onReset")
 		del self.exp
 		self.exp = self.controller.newExperiment(self.etype)
 		self.updateExpView()
 
 	@Slot(int)
 	def onStarted(self):
+		if self.debug: print(f"ExpControl {self.etype} -> onStarted")
 		self.updateActiveView()
 		i = self.expSelected
 		l = self.expCheckedList
@@ -488,15 +501,18 @@ class ExpControl(QWidget, Ui_expControl):
 
 	@Slot(int)
 	def onPaused(self):
+		if self.debug: print(f"ExpControl {self.etype} -> onPaused")
 		self.timer_start()
 		self.updateActiveView()
 
 	@Slot(int)
 	def onResumed(self):
+		if self.debug: print(f"ExpControl {self.etype} -> onResumed")
 		self.updateActiveView()
 
 	@Slot(int)
 	def onStoped(self):
+		if self.debug: print(f"ExpControl {self.etype} -> onStoped")
 		self.timer_start()
 		self.deactivate()
 		self.expList.append(self.exp)
@@ -522,6 +538,7 @@ class ExpControl(QWidget, Ui_expControl):
 
 	@Slot()
 	def onDataChanged(self):
+		if self.debug: print(f"ExpControl {self.etype} -> onDataChanged")
 		e = self.exp
 		c = self.controller
 		# print(e)
@@ -534,9 +551,11 @@ class ExpControl(QWidget, Ui_expControl):
 
 	@Slot(float, float)
 	def onNewCurrent(self, c1: float, c2: float):
+		if self.debug: print(f"ExpControl {self.etype} -> onNewCurrent {c1}, {c2}")
 		self.current1_label.setText(f"{c1:+.5e}")
 		self.current2_label.setText(f"{c2:+.5e}")
 
 	@Slot()
 	def onExit(self):
+		if self.debug: print(f"ExpControl {self.etype} -> onExit")
 		self.deactivate()

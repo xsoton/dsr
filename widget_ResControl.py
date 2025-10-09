@@ -10,6 +10,8 @@ from ui_resControl import Ui_resControl
 from detectors import detectorSi as detVIS, detectorInGaAs as detIR
 
 class ResControl(QWidget, Ui_resControl):
+	debug = False
+
 	expSelected: int
 	expCheckedList = {}
 
@@ -40,6 +42,7 @@ class ResControl(QWidget, Ui_resControl):
 		self.save_button.released.connect(self.save_button_slot)
 
 	def addExpToListView(self):
+		if self.debug: print(f"ResControl -> addExpToListView")
 		e = self.data[2].expList[-1]
 		i = len(self.data[2].expList)-1
 		p = self.exp_list_view.model().invisibleRootItem()
@@ -56,6 +59,7 @@ class ResControl(QWidget, Ui_resControl):
 
 	@Slot()
 	def onChecked(self):
+		if self.debug: print(f"ResControl -> onChecked")
 		l0 = self.data[0].expCheckedList
 		if len(l0) > 0: self.idVIS = l0[-1]
 		else:           self.idVIS = -1
@@ -80,11 +84,10 @@ class ResControl(QWidget, Ui_resControl):
 
 	@Slot()
 	def onEnded(self):
-		print("onEnded")
+		if self.debug: print(f"ResControl -> onEnded")
 		self.addExpToListView()
 
 	def save_button_slot(self):
-		print("save_button_slot")
 		self.save_button.setDisabled(True)
 
 		dateTime = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
@@ -115,6 +118,7 @@ class ResControl(QWidget, Ui_resControl):
 
 	@Slot(QStandardItem)
 	def onItemChanged(self, item: QStandardItem):
+		if self.debug: print(f"ResControl -> onItemChanged")
 		i = item.row()
 		c = (item.checkState() == Qt.Checked)
 		print(f"onItemChanged i = {i}, checked = {c}")
@@ -135,6 +139,7 @@ class ResControl(QWidget, Ui_resControl):
 
 	@Slot(QItemSelection, QItemSelection)
 	def onSelectionChanged(self, s1: QItemSelection, s2: QItemSelection):
+		if self.debug: print(f"ResControl -> onSelectionChanged")
 		l = self.expCheckedList
 
 		for idx in s1.indexes():
@@ -150,15 +155,13 @@ class ResControl(QWidget, Ui_resControl):
 			if i not in l:
 				self.sig_hide.emit(i)
 
-		print(f"onSelectionChanged {self.expSelected}")
-
 	@Slot()
 	def onExit(self):
-		print(f"onExit")
+		if self.debug: print(f"ResControl -> onExit")
 		return
 
 	def calc(self, index: int):
-		print(f"calc {index}")
+		if self.debug: print(f"ResControl -> calc {index}")
 
 		visRes = detVIS
 		visSp  = self.data[0].expList[self.idVIS]

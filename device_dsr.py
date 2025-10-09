@@ -4,6 +4,8 @@ from PySide6.QtCore import QObject, Signal, Slot
 import serial
 
 class DSR(QObject):
+	debug = False
+	
 	opened: bool
 	inited: bool
 	gl = [100.0, 300.0, 1100.0]
@@ -30,6 +32,7 @@ class DSR(QObject):
 		self.wl = -1
 
 	def open(self):
+		if self.debug: print(f"DSR -> open")
 		self.s = serial.Serial(self.filename, timeout=0.1)
 		self.s.reset_input_buffer()
 		self.s.reset_output_buffer()
@@ -38,6 +41,7 @@ class DSR(QObject):
 		self.cmd_hello()
 	
 	def close(self):
+		if self.debug: print(f"DSR -> close")
 		if not self.opened:
 			self.error.append("close: not opened")
 		else:
@@ -317,6 +321,7 @@ class DSR(QObject):
 	# === EXPORT ===
 
 	def get_shutter(self):
+		if self.debug: print(f"DSR -> get_shutter")
 		if not self.sha:
 			i = self.cmd_get_port()
 			i = (i & 16) >> 4
@@ -325,6 +330,7 @@ class DSR(QObject):
 		return self.sh
 
 	def set_shutter(self, sh: bool):
+		if self.debug: print(f"DSR -> set_shutter")
 		i = self.cmd_get_port()
 		i = (i & 16) >> 4
 		self.sh = (i == 1)
@@ -339,13 +345,13 @@ class DSR(QObject):
 
 	@Slot()
 	def getShutter(self):
-		# print("getShutter")
+		if self.debug: print(f"DSR -> getShutter")
 		self.get_shutter()
 		self.shutterDone.emit(self.sh)
 
 	@Slot(bool)
 	def setShutter(self, sh: bool):
-		# print("setShutter")
+		if self.debug: print(f"DSR -> setShutter")
 		self.set_shutter(sh)
 		self.shutterDone.emit(self.sh)
 
@@ -361,6 +367,8 @@ class DSR(QObject):
 
 	@Slot(float)
 	def setWl(self, wl: float):
+		if self.debug: print(f"DSR -> setWl {wl}")
+
 		g = 1
 		for i in range(len(self.gl)):
 			if wl >= self.gl[i]:
@@ -374,8 +382,6 @@ class DSR(QObject):
 				f = i+1
 			else:
 				break
-
-		# print(f"setWl {wl} g = {g} f = {f}")
 
 		self.get_shutter()
 		sh = self.sh
