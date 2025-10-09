@@ -233,6 +233,7 @@ class K6482(QObject):
 		self.get_current()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
 		self.newCurrent.emit(self.c1, self.c2)
+		return self.c1 if self.channel == 1 else self.c2
 
 	@Slot()
 	def getChannel(self):

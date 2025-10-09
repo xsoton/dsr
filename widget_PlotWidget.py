@@ -9,6 +9,8 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 class PlotWidget(pg.PlotWidget):
+	debug = False
+
 	color_list = [QColor("black"), QColor("red"), QColor("green"), QColor("blue"),
 		QColor(204, 204, 0), QColor(255, 0, 127), QColor(0, 204, 204), QColor(255, 128, 0)]
 
@@ -39,6 +41,7 @@ class PlotWidget(pg.PlotWidget):
 
 	@Slot()
 	def newCurve(self):
+		if self.debug: print(f"PlotWidget -> newCurve")
 		color=self.color_list[self.color_index]
 		self.color_index = self.color_index + 1
 		if self.color_index >= len(self.color_list):
@@ -52,15 +55,18 @@ class PlotWidget(pg.PlotWidget):
 
 	@Slot(int, list, list)
 	def updateDataIndex(self, index, x, y):
+		if self.debug: print(f"PlotWidget -> updateDataIndex {index} {x} {y}")
 		self.items[index].setData(x, y)
 		self.getPlotItem().autoRange(items = self.showItems)
 
 	@Slot(list, list)
 	def updateData(self, x, y):
+		if self.debug: print(f"PlotWidget -> updateData {x} {y}")
 		self.updateDataIndex(-1, x, y)
 
 	@Slot(int)
 	def show(self, i):
+		if self.debug: print(f"PlotWidget -> show {i}")
 		item = self.items[i]
 		item.show()
 		if item not in self.showItems:
@@ -69,6 +75,7 @@ class PlotWidget(pg.PlotWidget):
 
 	@Slot()
 	def showAll(self):
+		if self.debug: print(f"PlotWidget -> showAll")
 		for item in self.items:
 			item.show()
 			if item not in self.showItems:
@@ -77,6 +84,7 @@ class PlotWidget(pg.PlotWidget):
 
 	@Slot(int)
 	def hide(self, i):
+		if self.debug: print(f"PlotWidget -> hide {i}")
 		item = self.items[i]
 		item.hide()
 		if item in self.showItems:
@@ -85,6 +93,7 @@ class PlotWidget(pg.PlotWidget):
 
 	@Slot()
 	def hideAll(self):
+		if self.debug: print(f"PlotWidget -> hideAll")
 		for item in self.items:
 			item.hide()
 			if item in self.showItems:

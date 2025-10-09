@@ -119,7 +119,7 @@ class ExpControl(QWidget, Ui_expControl):
 
 	def timer_start(self):
 		if self.debug: print(f"ExpControl {self.etype} -> timer_start")
-		if self.activated and not self.timerActivated:
+		if self.activated and not self.timerActivated and self.exp["status"] != 1:
 			self.timerActivated = True
 			self.sig_getCurrent.emit()
 
@@ -573,6 +573,7 @@ class ExpControl(QWidget, Ui_expControl):
 		e["nplc"]        = e1["nplc"]
 		e["averageFlag"] = e1["averageFlag"]
 		e["average"]     = e1["average"]
+		e["currentWl"]   = e1["currentWl"]
 
 		self.updateExpView()
 		self.updateActiveView()

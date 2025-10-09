@@ -89,12 +89,12 @@ class Controller(QObject):
 		e["fileName"] = f"{e["dateTime"]}_{e["sampleName"]}.json"
 
 		# set parameters
-		self.k6482.set_channel(e["channel"])
-		self.k6482.set_output(e["voltageFlag"])
-		self.k6482.set_voltage(e["voltage"])
-		self.k6482.set_nplc(e["nplc"])
-		self.k6482.set_averageFlag(e["averageFlag"])
-		self.k6482.set_average(e["average"])
+		# self.k6482.set_channel(e["channel"])
+		# self.k6482.set_output(e["voltageFlag"])
+		# self.k6482.set_voltage(e["voltage"])
+		# self.k6482.set_nplc(e["nplc"])
+		# self.k6482.set_averageFlag(e["averageFlag"])
+		# self.k6482.set_average(e["average"])
 
 		self.startedFlag = True
 
