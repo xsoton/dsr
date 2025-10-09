@@ -1,5 +1,6 @@
 from PySide6.QtCore import QThread, Signal, Slot
 from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QApplication
+from PySide6.QtGui import QIcon
 
 import sys
 import pyqtgraph as pg
@@ -22,6 +23,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.setWindowTitle("DSR600")
 		self.move(20, 20)
 		self.centralwidget.resize(200, 200)
+		self.setWindowIcon(QIcon("img/icon-64.png"))
 
 		self.dsr = DSR("/dev/ttyUSB0")
 		self.dsr.open()
