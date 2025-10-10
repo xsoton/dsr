@@ -11,8 +11,8 @@ from scipy.interpolate import interp1d
 class PlotWidget(pg.PlotWidget):
 	debug = False
 
-	color_list = [QColor("black"), QColor("red"), QColor("green"), QColor("blue"),
-		QColor(204, 204, 0), QColor(255, 0, 127), QColor(0, 204, 204), QColor(255, 128, 0)]
+	color_list = [QColor("#003f5c"), QColor("#2f4b7c"), QColor("#665191"), QColor("#a05195"),
+				  QColor("#d45087"), QColor("#f95d6a"), QColor("#ff7c43"), QColor("#ffa600")]
 
 	styles = {"color": "black", "font-size": "16px", "font": "Calibri"}
 
@@ -42,7 +42,7 @@ class PlotWidget(pg.PlotWidget):
 	@Slot()
 	def newCurve(self):
 		if self.debug: print(f"PlotWidget -> newCurve")
-		color=self.color_list[self.color_index]
+		color = self.color_list[self.color_index]
 		self.color_index = self.color_index + 1
 		if self.color_index >= len(self.color_list):
 			self.color_list = 0
