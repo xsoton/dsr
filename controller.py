@@ -2,10 +2,7 @@ from typing import Self, List
 from dataclasses import dataclass
 import time
 import json
-from PySide6.QtCore import (
-	Qt, QObject, QReadWriteLock, Signal, Slot,
-	QDateTime, QTimer, QDir, QFile, QIODevice
-)
+from PySide6.QtCore import Qt, QObject, QReadWriteLock, Signal, Slot, QDateTime, QTimer
 from device_dsr import DSR
 from device_k6482 import K6482
 
@@ -87,14 +84,6 @@ class Controller(QObject):
 		e["status"] = 1
 		e["dateTime"] = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
 		e["fileName"] = f"{e["dateTime"]}_{e["sampleName"]}.json"
-
-		# set parameters
-		# self.k6482.set_channel(e["channel"])
-		# self.k6482.set_output(e["voltageFlag"])
-		# self.k6482.set_voltage(e["voltage"])
-		# self.k6482.set_nplc(e["nplc"])
-		# self.k6482.set_averageFlag(e["averageFlag"])
-		# self.k6482.set_average(e["average"])
 
 		self.startedFlag = True
 

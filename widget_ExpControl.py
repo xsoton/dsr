@@ -155,7 +155,8 @@ class ExpControl(QWidget, Ui_expControl):
 		self.frame_meas   .setDisabled(True)
 		self.frame_amp    .setDisabled(True)
 		self.frame_mono   .setDisabled(True)
-		self.exp_list_view.setDisabled(True)
+		self.frame_control.setDisabled(True)
+		# self.exp_list_view.setDisabled(True)
 		self.timer_stop()
 
 	def updateActiveView(self):
@@ -171,7 +172,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_amp.setDisabled(False)
 			self.frame_mono.setDisabled(False)
 			self.load_button.setDisabled(False)
-			self.exp_list_view.setDisabled(False)
+			# self.exp_list_view.setDisabled(False)
 		elif e["status"] == 1:
 			self.start_button.setText("Pause")
 			self.start_button.setDisabled(False)
@@ -181,7 +182,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(True)
 			self.load_button.setDisabled(True)
-			self.exp_list_view.setDisabled(True)
+			# self.exp_list_view.setDisabled(True)
 		elif e["status"] == 2:
 			self.start_button.setText("Resume")
 			self.start_button.setDisabled(False)
@@ -191,7 +192,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(False)
 			self.load_button.setDisabled(False)
-			self.exp_list_view.setDisabled(True)
+			# self.exp_list_view.setDisabled(True)
 		elif e["status"] == 3:
 			self.start_button.setText("Start")
 			self.start_button.setDisabled(True)
@@ -201,7 +202,8 @@ class ExpControl(QWidget, Ui_expControl):
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(True)
 			self.load_button.setDisabled(False)
-			self.exp_list_view.setDisabled(False)
+			# self.exp_list_view.setDisabled(False)
+		self.frame_control.setDisabled(False)
 
 	def addExpToListView(self):
 		if self.debug: print(f"ExpControl {self.etype} -> addExpToListView")
@@ -534,13 +536,13 @@ class ExpControl(QWidget, Ui_expControl):
 		if i not in l:
 			if c:
 				l.append(i)
-				if i != s:
-					self.sig_show.emit(i)
+				# if i != s:
+				self.sig_show.emit(i)
 		else:
 			if not c:
 				l.remove(i)
-				if i != s:
-					self.sig_hide.emit(i)
+				# if i != s:
+				self.sig_hide.emit(i)
 
 		self.sig_checked.emit()
 
