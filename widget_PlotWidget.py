@@ -100,5 +100,7 @@ class PlotWidget(pg.PlotWidget):
 				self.showItems.remove(item)
 		self.getPlotItem().autoRange(items = self.showItems)
 
+	def setXLabel(self, label: str):
+		self.setLabel("bottom", label, **self.styles)
 	def setYLabel(self, label: str):
 		self.setLabel("left", label, **self.styles)

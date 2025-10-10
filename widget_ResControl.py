@@ -30,6 +30,8 @@ class ResControl(QWidget, Ui_resControl):
 		super(ResControl, self).__init__(parent)
 		self.setupUi(self)
 
+		self.activated = False
+
 		self.data = exps
 
 		m = QStandardItemModel()
@@ -40,6 +42,16 @@ class ResControl(QWidget, Ui_resControl):
 		self.expCheckedList = {}
 
 		self.save_button.released.connect(self.save_button_slot)
+
+	def activate(self):
+		if self.debug: print(f"ResControl {self.etype} -> activate")
+		if not self.activated:
+			self.activated = True
+
+	def deactivate(self):
+		if self.debug: print(f"ResControl {self.etype} -> deactivate")
+		if self.activated:
+			self.activated = False
 
 	def addExpToListView(self):
 		if self.debug: print(f"ResControl -> addExpToListView")
