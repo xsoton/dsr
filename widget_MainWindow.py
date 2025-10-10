@@ -85,6 +85,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		p = PlotWidget()
 		r = ResControl(self.exps)
+		self.exps.append(r)
 		p.setYLabel("Responsivity, A/W")
 		# self.sig_exit.connect(e.onExit)
 		r.sig_updateData.connect(p.updateData)
@@ -108,6 +109,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		p = PlotWidget()
 		e = TimeControl(self.timeController, self.dsr, self.k6482)
+		self.exps.append(e)
 		self.time = e
 		p.setXLabel("Time, s")
 		p.setYLabel("Current, A")
@@ -122,7 +124,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		e.sig_ended     .connect(self.enableTabBar)
 		l = QHBoxLayout()
 		l.addWidget(p)
-		l.addWidget(r)
+		l.addWidget(e)
 		w = QWidget()
 		w.setLayout(l)
 		self.tabs.addTab(w, n[4])
@@ -144,7 +146,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def onTabChanged(self, index: int):
 		if self.debug: print(f"MainWindow -> onTabChanged {index}")
 		self.index = index
-		for i in range(5):
+		for i in range(len(self.exps)):
 			if i == index:
 				self.exps[i].activate()
 			else:

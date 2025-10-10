@@ -241,6 +241,7 @@ class K6482(QObject):
 		self.get_channel()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
 		self.setChannelDone.emit(self.channel)
+		return self.channel
 
 	@Slot(int)
 	def setChannel(self, channel: int):
@@ -255,6 +256,7 @@ class K6482(QObject):
 		self.get_output()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
 		self.setVoltageFlagDone.emit(self.voltageFlag)
+		return self.voltageFlag
 
 	@Slot(bool)
 	def setVoltageFlag(self, voltageFlag: bool):
@@ -269,6 +271,7 @@ class K6482(QObject):
 		self.get_voltage()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
 		self.setVoltageDone.emit(self.voltage)
+		return self.voltage
 
 	@Slot(float)
 	def setVoltage(self, voltage: float):
@@ -283,6 +286,7 @@ class K6482(QObject):
 		self.get_nplc()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
 		self.setNplcDone.emit(self.nplc)
+		return self.nplc
 
 	@Slot(int)
 	def setNplc(self, nplc: int):
@@ -297,6 +301,7 @@ class K6482(QObject):
 		self.get_averageFlag()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
 		self.setAverageFlagDone.emit(self.averageFlag)
+		return self.averageFlag
 
 	@Slot(bool)
 	def setAverageFlag(self, averageFlag: bool):
@@ -311,6 +316,7 @@ class K6482(QObject):
 		self.get_average()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
 		self.setAverageDone.emit(self.average)
+		return self.average
 
 	@Slot(int)
 	def setAverage(self, average: int):

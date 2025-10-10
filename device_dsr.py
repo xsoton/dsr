@@ -348,6 +348,7 @@ class DSR(QObject):
 		if self.debug: print(f"DSR -> getShutter")
 		self.get_shutter()
 		self.shutterDone.emit(self.sh)
+		return self.sh
 
 	@Slot(bool)
 	def setShutter(self, sh: bool):

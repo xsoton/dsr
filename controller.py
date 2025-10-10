@@ -145,7 +145,7 @@ class TimeState(Enum):
 	STEP = 2
 
 class TimeController(QObject):
-	debug = True
+	debug = False
 
 	started     = Signal()
 	paused      = Signal()
@@ -204,12 +204,9 @@ class TimeController(QObject):
 		e["fileName"]    = ""
 		e["stage"]       = 0
 		e["time"]        = 0.0
-		e["duration"]    = 0.0
+		e["duration"]    = 1.0
 		e["t"]  = []
 		e["I"]  = []
-		e["V"]  = []
-		e["wl"] = []
-		e["sh"] = []
 		return e
 
 	@Slot()
@@ -225,6 +222,7 @@ class TimeController(QObject):
 		self.start_time = 0
 		self.time_stage = 0
 		e["stage"] = 0
+		e["duration"] = 0.0
 		for es in e["script"]:
 			e["duration"] = e["duration"] + es["t"]
 
@@ -276,24 +274,23 @@ class TimeController(QObject):
 				else:
 					self.onStop()
 			elif self.state == TimeState.STEP:
+				if self.debug: print(f"{self.start_time=}")
 				if self.start_time == 0:
 					self.start_time = QDateTime.currentMSecsSinceEpoch()
 					e["time"] = 0
 				else:
-					e["time"] = QDateTime.currentMSecsSinceEpoch() - self.start_time
+					e["time"] = (QDateTime.currentMSecsSinceEpoch() - self.start_time) * 1e-3
 
+				if self.debug: print(f"{e["time"]=}")
 				if e["time"] - self.time_stage > e["script"][e["stage"]]["t"]:
-					e["stage"] = e["stage"] + 1
 					self.time_stage = self.time_stage + e["script"][e["stage"]]["t"]
+					e["stage"] = e["stage"] + 1
 					self.state = TimeState.NEXT
 					self.sig_next_point.emit()
 				else:
 					self.wlock()
 					e["t"] .append(e["time"])
-					e["V"] .append(self.k6482.getVoltage())
-					e["wl"].append(self.dsr.getWl())
-					e["sh"].append(self.dsr.getShutter())
-					s["I"] .append(self.k6482.getCurrent())
+					e["I"] .append(self.k6482.getCurrent())
 					self.unlock()
 					self.dataChanged.emit()
 					self.sig_next_point.emit()

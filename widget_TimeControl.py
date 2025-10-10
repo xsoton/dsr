@@ -1,7 +1,7 @@
 from PySide6.QtCore import (Qt, QTimer, Signal, Slot,
 	QRegularExpression, QLocale, QItemSelection, QItemSelectionModel)
 from PySide6.QtGui import (QStandardItemModel, QStandardItem,
-	QRegularExpressionValidator, QDoubleValidator, QIntValidator)
+	QValidator, QRegularExpressionValidator, QDoubleValidator, QIntValidator)
 from PySide6.QtWidgets import QWidget, QFileDialog
 
 from typing import List
@@ -9,13 +9,13 @@ from math import *
 import os
 import json
 
-from ui_expControl import Ui_expControl
+from ui_timeControl import Ui_timeControl
 from controller import TimeController
 from device_dsr import DSR
 from device_k6482 import K6482
 
-class TimeControl(QWidget, Ui_expControl):
-	debug = False
+class TimeControl(QWidget, Ui_timeControl):
+	debug = True
 
 	sig_reset  = Signal()
 	sig_start  = Signal()
@@ -59,6 +59,13 @@ class TimeControl(QWidget, Ui_expControl):
 		self.k6482 = k6482
 		self.file_dialog = QFileDialog()
 
+		self.channel     = 1
+		self.voltageFlag = False
+		self.voltage     = 0.0
+		self.nplc        = 1
+		self.averageFlag = False
+		self.average     = 1
+
 		self.exp = self.controller.newExperiment()
 		self.expList = []
 		self.expSelected = -1
@@ -68,9 +75,26 @@ class TimeControl(QWidget, Ui_expControl):
 		self.sig_getCurrent.connect(self.k6482.getCurrent)
 
 		# initialize filters
+		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
+		v = QRegularExpressionValidator(re, self)
+		self.sample_edit.setValidator(v)
+
+		v = QDoubleValidator(0.00, 1440*600, 3, self)
+		v.setLocale(QLocale(QLocale.C))
+		self.time_v = v
+
 		v = QDoubleValidator(-10.00, 10.00, 2, self)
 		v.setLocale(QLocale(QLocale.C))
 		self.voltage_edit.setValidator(v)
+		self.voltage_v = v
+
+		v = QDoubleValidator(200.00, 2000.00, 2, self)
+		v.setLocale(QLocale(QLocale.C))
+		self.wl_v = v
+
+		v = QIntValidator(0, 1, self)
+		v.setLocale(QLocale(QLocale.C))
+		self.sh_v = v
 
 		v = QDoubleValidator(0.01, 10.00, 2, self)
 		v.setLocale(QLocale(QLocale.C))
@@ -116,10 +140,11 @@ class TimeControl(QWidget, Ui_expControl):
 			self.sample_edit.setStyleSheet("background-color: yellow")
 		else:
 			self.sample_edit.setStyleSheet("")
-		s = ""
-		for sc in e["script"]:
-			s = s + f"{sc["t"]} {sc["V"]} {sc["wl"]} {[sc["sh"]]}\n"
-		self.exp_edit.setPlainText(s)
+		# s = ""
+		# for sc in e["script"]:
+		# 	s = s + f"{sc["t"]} {sc["V"]} {sc["wl"]} {int(sc["sh"])}\n"
+		# 	print(f"{s=}")
+		# self.exp_edit.setPlainText(s)
 		self.channel1_radio.setChecked(True if e["channel"] == 1 else False)
 		self.channel2_radio.setChecked(True if e["channel"] == 2 else False)
 		self.voltage_check.setChecked(e["voltageFlag"])
@@ -134,8 +159,8 @@ class TimeControl(QWidget, Ui_expControl):
 		# self.stop_button  .setDisabled(True)
 		self.frame_meas   .setDisabled(True)
 		self.frame_amp    .setDisabled(True)
-		self.frame_mono   .setDisabled(True)
-		self.frame_control.setDisabled(True)
+		# self.frame_mono   .setDisabled(True)
+		# self.frame_control.setDisabled(True)
 		# self.exp_list_view.setDisabled(True)
 		self.timer_stop()
 
@@ -160,7 +185,7 @@ class TimeControl(QWidget, Ui_expControl):
 			self.stop_button.setDisabled(False)
 			self.frame_meas.setDisabled(True)
 			self.frame_amp.setDisabled(True)
-			self.frame_mono.setDisabled(True)
+			# self.frame_mono.setDisabled(True)
 			self.load_button.setDisabled(True)
 			# self.exp_list_view.setDisabled(True)
 		elif e["status"] == 2:
@@ -180,7 +205,7 @@ class TimeControl(QWidget, Ui_expControl):
 			self.stop_button.setDisabled(False)
 			self.frame_meas.setDisabled(True)
 			self.frame_amp.setDisabled(True)
-			self.frame_mono.setDisabled(True)
+			# self.frame_mono.setDisabled(True)
 			self.load_button.setDisabled(False)
 			# self.exp_list_view.setDisabled(False)
 		self.frame_control.setDisabled(False)
@@ -200,18 +225,21 @@ class TimeControl(QWidget, Ui_expControl):
 
 	def link_signals(self):
 		if self.debug: print(f"TimeControl -> link_signals")
+		self.sample_edit   .returnPressed.connect(self.sample_edit_new_slot)
+		self.sample_edit   .inputRejected.connect(self.sample_edit_rejected_slot)
+		self.sample_edit   .textEdited   .connect(self.sample_edit_edited_slot)
 		self.exp_edit      .textChanged  .connect(self.exp_edit_edited_slot)
 		self.exp_button    .released     .connect(self.exp_button_slot)
 		self.channel1_radio.clicked      .connect(self.channel1_radio_slot)
 		self.channel2_radio.clicked      .connect(self.channel2_radio_slot)
 		self.voltage_check .clicked      .connect(self.voltage_check_slot)
 		self.voltage_edit  .returnPressed.connect(self.voltage_edit_slot)
-		self.voltage_edit  .textEdited   .connect(self.voltage_edit_edited_slot)
+		self.voltage_edit  .textChanged  .connect(self.voltage_edit_edited_slot)
 		self.nplc_edit     .returnPressed.connect(self.nplc_edit_slot)
-		self.nplc_edit     .textEdited   .connect(self.nplc_edit_edited_slot)
+		self.nplc_edit     .textChanged  .connect(self.nplc_edit_edited_slot)
 		self.average_check .clicked      .connect(self.average_check_slot)
 		self.average_edit  .returnPressed.connect(self.average_edit_slot)
-		self.average_edit  .textEdited   .connect(self.average_edit_edited_slot)
+		self.average_edit  .textChanged  .connect(self.average_edit_edited_slot)
 		self.wl_edit       .returnPressed.connect(self.wl_edit_slot)
 		self.wl_edit       .textEdited   .connect(self.wl_edit_edited_slot)
 		self.shutter_check .clicked      .connect(self.shutter_check_slot)
@@ -253,6 +281,24 @@ class TimeControl(QWidget, Ui_expControl):
 			c.resumed      .connect(self.onResumed)
 			c.stoped       .connect(self.onStoped)
 			c.dataChanged  .connect(self.onDataChanged)
+
+			self.disableActiveView()
+			e = self.exp
+			self.channel1_radio.setChecked(e["channel"] == 1)
+			self.channel2_radio.setChecked(e["channel"] == 2)
+			self.voltage_check .setChecked(e["voltageFlag"])
+			self.voltage_edit  .setText(f"{e["voltage"]}")
+			self.nplc_edit     .setText(f"{e["nplc"]}")
+			self.average_check .setChecked(e["averageFlag"])
+			self.average_edit  .setText(f"{e["average"]}")
+
+			self.sig_setChannel    .emit(e["channel"])
+			self.sig_setVoltageFlag.emit(e["voltageFlag"])
+			self.sig_setVoltage    .emit(e["voltage"])
+			self.sig_setNplc       .emit(e["nplc"])
+			self.sig_setAverageFlag.emit(e["averageFlag"])
+			self.sig_setAverage    .emit(e["average"])
+
 			self.activated = True
 			self.timer_start()
 
@@ -272,13 +318,49 @@ class TimeControl(QWidget, Ui_expControl):
 			self.timer_stop()
 			self.activated = False
 
+	def sample_edit_new_slot(self):
+		if self.debug: print(f"TimeControl -> sample_edit_new_slot")
+		self.exp["sampleName"] = self.sample_edit.text()
+		self.sample_edit.setStyleSheet("")
+	def sample_edit_edited_slot(self, text):
+		if self.debug: print(f"TimeControl -> sample_edit_edited_slot")
+		if len(text) == 0 or self.exp["sampleName"] != text:
+			self.sample_edit.setStyleSheet("background: yellow; color: black")
+	def sample_edit_rejected_slot(self):
+		if self.debug: print(f"TimeControl -> sample_edit_rejected_slot")
+		self.sample_edit.setStyleSheet("background: red; color: white")
+
 	def exp_button_slot(self):
+		if self.debug: print(f"TimeControl -> exp_button_slot")
 		text = self.exp_edit.toPlainText()
 		a = text.strip().split('\n')
-		print(a)
-		self.exp_edit.setStyleSheet("")
-		self.disableActiveView()
+		self.exp["script"] = []
+		for e in a:
+			l = e.strip().split(' ')
+			if len(l) == 4:
+				tv, _, _ = self.time_v   .validate(l[0], 0)
+				vv, _, _ = self.voltage_v.validate(l[1], 0)
+				wv, _, _ = self.wl_v     .validate(l[2], 0)
+				sv, _, _ = self.sh_v     .validate(l[3], 0)
+
+				tv = tv == QValidator.State.Acceptable
+				vv = vv == QValidator.State.Acceptable
+				wv = wv == QValidator.State.Acceptable
+				sv = sv == QValidator.State.Acceptable
+
+				if tv and vv and wv and sv:
+					t  = float(l[0])
+					V  = float(l[1])
+					wl = float(l[2])
+					sh = bool(int(l[3]))
+					self.exp["script"].append({"t": t, "V": V, "wl": wl, "sh": sh})
+					self.exp_edit.setStyleSheet("")
+				else:
+					self.exp_edit.setStyleSheet("background: red; color: white")
+			else:
+				self.exp_edit.setStyleSheet("background: red; color: white")
 	def exp_edit_edited_slot(self):
+		if self.debug: print(f"TimeControl -> exp_edit_edited_slot")
 		self.exp_edit.setStyleSheet("background: yellow")
 
 	def channel1_radio_slot(self):
@@ -310,36 +392,50 @@ class TimeControl(QWidget, Ui_expControl):
 		self.timer_start()
 
 	def voltage_edit_slot(self):
-		self.exp["voltage"] = float(self.voltage_edit.text())
+		if self.debug: print(f"TimeControl -> voltage_edit_slot")
+		self.voltage = float(self.voltage_edit.text())
+		self.exp["voltage"] = self.voltage
 		self.voltage_edit.setStyleSheet("")
 		self.disableActiveView()
 		self.sig_setVoltage.emit(self.exp["voltage"])
 	def voltage_edit_edited_slot(self, text):
-		if len(text) == 0 or self.exp["voltage"] != float(text):
+		if self.debug: print(f"TimeControl -> voltage_edit_edited_slot")
+		if len(text) == 0 or self.k6482.voltage != float(text):
 			self.voltage_edit.setStyleSheet("background: yellow")
+		else:
+			self.voltage_edit.setStyleSheet("background: green; color: white")
 	@Slot(float)
 	def onSetVoltageDone(self, voltage: float):
 		if self.debug: print(f"TimeControl -> onSetVoltageDone")
 		self.voltage_edit.setStyleSheet("background: green; color: white")
 		self.voltage_edit.setText(f"{voltage}")
-		if self.activated: self.exp["voltage"] = voltage
+		if self.activated:
+			self.exp["voltage"] = voltage
+			self.voltage = voltage
 		self.updateActiveView()
 		self.timer_start()
 
 	def nplc_edit_slot(self):
-		self.exp["nplc"] = int(self.nplc_edit.text())
+		if self.debug: print(f"TimeControl -> nplc_edit_slot")
+		self.nplc = int(self.nplc_edit.text())
+		self.exp["nplc"] = self.nplc
 		self.nplc_edit.setStyleSheet("")
 		self.disableActiveView()
 		self.sig_setNplc.emit(self.exp["nplc"])
 	def nplc_edit_edited_slot(self, text):
-		if len(text) == 0 or self.exp["nplc"] != int(text):
+		if self.debug: print(f"TimeControl -> nplc_edit_edited_slot")
+		if len(text) == 0 or self.k6482.nplc != int(text):
 			self.nplc_edit.setStyleSheet("background: yellow")
+		else:
+			self.nplc_edit.setStyleSheet("background: green; color: white")
 	@Slot(int)
 	def onSetNplcDone(self, nplc: int):
 		if self.debug: print(f"TimeControl -> onSetNplcDone")
 		self.nplc_edit.setStyleSheet("background: green; color: white")
 		self.nplc_edit.setText(f"{nplc}")
-		if self.activated: self.exp["nplc"] = nplc
+		if self.activated:
+			self.exp["nplc"] = nplc
+			self.nplc = nplc
 		self.updateActiveView()
 		self.timer_start()
 
@@ -356,19 +452,26 @@ class TimeControl(QWidget, Ui_expControl):
 		self.timer_start()
 
 	def average_edit_slot(self):
-		self.exp["average"] = int(self.average_edit.text())
+		if self.debug: print(f"TimeControl -> average_edit_slot")
+		self.average = int(self.average_edit.text())
+		self.exp["average"] = self.average
 		self.average_edit.setStyleSheet("")
 		self.disableActiveView()
 		self.sig_setAverage.emit(self.exp["average"])
 	def average_edit_edited_slot(self, text):
-		if len(text) == 0 or self.exp["average"] != int(text):
+		if self.debug: print(f"TimeControl -> average_edit_edited_slot")
+		if len(text) == 0 or self.k6482.average != int(text):
 			self.average_edit.setStyleSheet("background: yellow")
+		else:
+			self.average_edit.setStyleSheet("background: green; color: white")
 	@Slot(int)
 	def onSetAverageDone(self, average: int):
 		if self.debug: print(f"TimeControl -> onSetAverageDone")
 		self.average_edit.setStyleSheet("background: green; color: white")
 		self.average_edit.setText(f"{average}")
-		if self.activated: self.exp["average"] = average
+		if self.activated:
+			self.exp["average"] = average
+			self.average = average
 		self.updateActiveView()
 		self.timer_start()
 
@@ -402,6 +505,7 @@ class TimeControl(QWidget, Ui_expControl):
 		self.timer_start()
 
 	def start_button_slot(self):
+		if self.debug: print(f"TimeControl -> start_button_slot")
 		e = self.exp
 		c = self.controller
 		if len(e["sampleName"]) == 0: return
@@ -416,6 +520,7 @@ class TimeControl(QWidget, Ui_expControl):
 			self.sig_resume.emit()
 
 	def stop_button_slot(self):
+		if self.debug: print(f"TimeControl -> stop_button_slot")
 		e = self.exp
 		if   e["status"] == 0: self.sig_reset.emit()
 		elif e["status"] == 1: self.sig_stop.emit()
@@ -540,7 +645,7 @@ class TimeControl(QWidget, Ui_expControl):
 		self.expList.append(self.exp)
 		self.expSelected = len(self.expList)-1
 
-		e = self.controller.newExperiment(self.etype)
+		e = self.controller.newExperiment()
 		e["sampleName"]  = self.exp["sampleName"]
 		e["script"]      = self.exp["script"]
 		e["channel"]     = self.exp["channel"]
@@ -572,7 +677,7 @@ class TimeControl(QWidget, Ui_expControl):
 
 	@Slot(float, float)
 	def onNewCurrent(self, c1: float, c2: float):
-		if self.debug: print(f"TimeControl -> onNewCurrent {c1}, {c2}")
+		# if self.debug: print(f"TimeControl -> onNewCurrent {c1}, {c2}")
 		self.current1_label.setText(f"{c1:+.5e}")
 		self.current2_label.setText(f"{c2:+.5e}")
 		if self.timerActivated:
