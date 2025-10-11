@@ -15,14 +15,16 @@ from device_dsr import DSR
 from device_k6482 import K6482
 
 class TimeControl(QWidget, Ui_timeControl):
-	debug = True
+	debug = False
 
 	reset  = Signal()
 	start  = Signal()
 	pause  = Signal()
 	resume = Signal()
 	stop   = Signal()
-	ended  = Signal()
+
+	busy   = Signal()
+	idle   = Signal()
 
 	getWl      = Signal()
 	setWl      = Signal(float)
@@ -76,7 +78,6 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.expCheckedList = []
 
 		self.timerActivated = False
-		self.getCurrent.connect(self.k6482.getCurrent)
 
 		# initialize filters
 		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
@@ -135,6 +136,28 @@ class TimeControl(QWidget, Ui_timeControl):
 		if self.activated:
 			self.timerActivated = False
 
+	def newExperiment(self):
+		if self.debug: print(f"TimeControl -> newExperiment")
+		e = {}
+		e["sampleName"]  = ""
+		e["script"]      = [] # of {"t": 20, "V": 0.3, "wl": 550, "sh": True}
+		e["channel"]     = 1
+		e["voltageFlag"] = False
+		e["voltage"]     = 0
+		e["nplc"]        = 1
+		e["averageFlag"] = False
+		e["average"]     = 1
+		e["type"]        = 3
+		e["status"]      = 0
+		e["dateTime"]    = ""
+		e["fileName"]    = ""
+		e["stage"]       = 0
+		e["time"]        = 0.0
+		e["duration"]    = 1.0
+		e["t"]  = []
+		e["I"]  = []
+		self.exp = e
+
 	def updateExpView(self):
 		if self.debug: print(f"TimeControl -> updateExpView")
 		e = self.exp
@@ -159,9 +182,11 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.progress_bar.setValue(int(100*e["time"]/e["duration"]))
 
 	def disableActiveView(self):
+		if self.debug: print(f"TimeControl -> disableActiveView")
 		self.frame_meas   .setDisabled(True)
 		self.frame_amp    .setDisabled(True)
 		self.timer_stop()
+		self.busy.emit()
 
 	def updateActiveView(self):
 		if self.debug: print(f"TimeControl -> updateActiveView")
@@ -205,6 +230,7 @@ class TimeControl(QWidget, Ui_timeControl):
 			self.load_button.setDisabled(False)
 		self.frame_control.setDisabled(False)
 		self.timer_start()
+		self.idle.emit()
 
 	def addExpToListView(self):
 		if self.debug: print(f"TimeControl -> addExpToListView")
@@ -246,7 +272,7 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.reset .connect(self.onReset)
 
 	def link_controller(self):
-		if self.debug: print(f"TimeControl {self.etype} -> link_controller")
+		if self.debug: print(f"TimeControl -> link_controller")
 		c = self.controller
 		self.start   .connect(c.start)
 		self.pause   .connect(c.pause)
@@ -259,7 +285,7 @@ class TimeControl(QWidget, Ui_timeControl):
 		c.dataChanged.connect(self.dataChanged)
 
 	def unlink_controller(self):
-		if self.debug: print(f"TimeControl {self.etype} -> unlink_controller")
+		if self.debug: print(f"TimeControl -> unlink_controller")
 		c = self.controller
 		self.start   .disconnect(c.start)
 		self.pause   .disconnect(c.pause)
@@ -371,9 +397,46 @@ class TimeControl(QWidget, Ui_timeControl):
 
 	def exp_released(self):
 		if self.debug: print(f"TimeControl -> exp_released")
-		text = self.exp_edit.toPlainText()
+		r1, r2 = self.parse_exp(self.exp_edit.toPlainText())
+		if r2:
+			self.exp["script"] = []
+			for e in r1:
+				self.exp["script"].append(e)
+			self.exp_edit.setStyleSheet("")
+		else:
+			self.exp_edit.setStyleSheet("background: red; color: white")
+	def exp_edited(self):
+		if self.debug: print(f"TimeControl -> exp_edited")
+		c = True
+		r1, r2 = self.parse_exp(self.exp_edit.toPlainText())
+		print(self.exp["script"])
+		print(r1)
+		if r2:
+			if len(self.exp["script"]) == len(r1) and len(r1) > 0:
+				print(f"1 {c=}")
+				for i in range(len(r1)):
+					if r1[i]["t"] != self.exp["script"][i]["t"]:
+						c = False
+					if r1[i]["V"] != self.exp["script"][i]["V"]:
+						c = False
+					if r1[i]["wl"] != self.exp["script"][i]["wl"]:
+						c = False
+					if r1[i]["sh"] != self.exp["script"][i]["sh"]:
+						c = False
+					print(f"2 {c=}")
+			else:
+				c = False
+				print(f"3 {c=}")
+		else:
+			c = False
+			print(f"4 {c=}")
+
+		if not c:
+			self.exp_edit.setStyleSheet("background: yellow")
+	def parse_exp(self, text: str):
 		a = text.strip().split('\n')
-		self.exp["script"] = []
+		r1 = []
+		r2 = True
 		for e in a:
 			l = e.strip().split(' ')
 			if len(l) == 4:
@@ -392,21 +455,21 @@ class TimeControl(QWidget, Ui_timeControl):
 					V  = float(l[1])
 					wl = float(l[2])
 					sh = bool(int(l[3]))
-					self.exp["script"].append({"t": t, "V": V, "wl": wl, "sh": sh})
-					self.exp_edit.setStyleSheet("")
+					r1.append({"t": t, "V": V, "wl": wl, "sh": sh})
 				else:
-					self.exp_edit.setStyleSheet("background: red; color: white")
+					r2 = False
 			else:
-				self.exp_edit.setStyleSheet("background: red; color: white")
-	def exp_edited(self):
-		if self.debug: print(f"TimeControl -> exp_edited")
-		self.exp_edit.setStyleSheet("background: yellow")
+				r2 = False
+
+		return (r1, r2)
 
 	def channel1_clicked(self):
+		if self.debug: print(f"TimeControl -> channel1_clicked")
 		self.exp["channel"] = 1 if self.channel1_radio.isChecked() else 2
 		self.disableActiveView()
 		self.setChannel.emit(self.exp["channel"])
 	def channel2_clicked(self):
+		if self.debug: print(f"TimeControl -> channel2_clicked")
 		self.exp["channel"] = 2 if self.channel2_radio.isChecked() else 1
 		self.disableActiveView()
 		self.setChannel.emit(self.exp["channel"])
@@ -416,9 +479,9 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.channel1_radio.setChecked(True if channel == 1 else False)
 		if self.activated: self.exp["channel"] = 1 if channel == 1 else 2
 		self.updateActiveView()
-		self.timer_start()
 
 	def voltage_clicked(self):
+		if self.debug: print(f"TimeControl -> voltage_clicked")
 		self.exp["voltageFlag"] = self.voltage_check.isChecked()
 		self.disableActiveView()
 		self.setVoltageFlag.emit(self.exp["voltageFlag"])
@@ -428,7 +491,6 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.voltage_check.setChecked(voltageFlag)
 		if self.activated: self.exp["voltageFlag"] = voltageFlag
 		self.updateActiveView()
-		self.timer_start()
 
 	def voltage_new(self):
 		if self.debug: print(f"TimeControl -> voltage_new")
@@ -449,7 +511,6 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.voltage_edit.setText(f"{voltage}")
 		if self.activated: self.exp["voltage"] = voltage
 		self.updateActiveView()
-		self.timer_start()
 
 	def nplc_new(self):
 		if self.debug: print(f"TimeControl -> nplc_new")
@@ -470,9 +531,9 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.nplc_edit.setText(f"{nplc}")
 		if self.activated: self.exp["nplc"] = nplc
 		self.updateActiveView()
-		self.timer_start()
 
 	def average_clicked(self):
+		if self.debug: print(f"TimeControl -> average_clicked")
 		self.exp["averageFlag"] = self.average_check.isChecked()
 		self.disableActiveView()
 		self.setAverageFlag.emit(self.exp["averageFlag"])
@@ -482,7 +543,6 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.average_check.setChecked(averageFlag)
 		if self.activated: self.exp["averageFlag"] = averageFlag
 		self.updateActiveView()
-		self.timer_start()
 
 	def average_new(self):
 		if self.debug: print(f"TimeControl -> average_new")
@@ -503,9 +563,9 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.average_edit.setText(f"{average}")
 		if self.activated: self.exp["average"] = average
 		self.updateActiveView()
-		self.timer_start()
 
 	def wl_new(self):
+		if self.debug: print(f"TimeControl -> average_clicked")
 		self.wl = float(self.wl_edit.text())
 		self.wl_edit.setStyleSheet("")
 		self.disableActiveView()
@@ -520,9 +580,9 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.wl_edit.setText(f"{self.wl:.3f}")
 		self.wl_edit.setStyleSheet("background: green; color: white")
 		self.updateActiveView()
-		self.timer_start()
 
 	def shutter_clicked(self):
+		if self.debug: print(f"TimeControl -> average_clicked")
 		self.shutter = self.shutter_check.isChecked()
 		self.disableActiveView()
 		self.setShutter.emit(self.shutter)
@@ -532,7 +592,6 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.shutter = shutter
 		self.shutter_check.setCheckState(Qt.Checked if self.shutter else Qt.Unchecked)
 		self.updateActiveView()
-		self.timer_start()
 
 	def start_released(self):
 		if self.debug: print(f"TimeControl -> start_released")
@@ -541,6 +600,7 @@ class TimeControl(QWidget, Ui_timeControl):
 		if len(e["sampleName"]) == 0: return
 		if e["status"] == 0:
 			self.timer_stop()
+			self.busy.emit()
 			c.e = e
 			self.start.emit()
 		elif e["status"] == 1:
@@ -586,6 +646,7 @@ class TimeControl(QWidget, Ui_timeControl):
 				self.newCurve.emit()
 				self.updateData.emit(en["t"], en["I"])
 				self.addExpToListView()
+				self.idle.emit()
 
 	@Slot(QStandardItem)
 	def onItemChanged(self, item: QStandardItem):
@@ -670,7 +731,7 @@ class TimeControl(QWidget, Ui_timeControl):
 	def stopDone(self):
 		if self.debug: print(f"TimeControl -> stopDone")
 		self.timer_start()
-		self.deactivate()
+		self.unlink_controller()
 		self.expList.append(self.exp)
 		self.expSelected = len(self.expList)-1
 
@@ -686,9 +747,10 @@ class TimeControl(QWidget, Ui_timeControl):
 		e["average"]     = self.exp["average"]
 		e["time"]        = self.exp["time"]
 		e["duration"]    = self.exp["duration"]
-		self.activate()
+		self.link_controller()
 		self.updateActiveView()
 		self.addExpToListView()
+		self.idle.emit()
 
 	@Slot()
 	def dataChanged(self):

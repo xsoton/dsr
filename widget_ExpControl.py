@@ -15,13 +15,16 @@ from device_dsr import DSR
 from device_k6482 import K6482
 
 class ExpControl(QWidget, Ui_expControl):
-	debug = True
+	debug = False
 
 	reset  = Signal()
 	start  = Signal()
 	pause  = Signal()
 	resume = Signal()
 	stop   = Signal()
+
+	busy   = Signal()
+	idle   = Signal()
 	ended  = Signal()
 
 	getWl      = Signal()
@@ -197,6 +200,7 @@ class ExpControl(QWidget, Ui_expControl):
 		self.frame_mono   .setDisabled(True)
 		self.frame_control.setDisabled(True)
 		self.timer_stop()
+		self.busy.emit()
 
 	def updateActiveView(self):
 		if self.debug: print(f"ExpControl {self.etype} -> updateActiveView")
@@ -240,6 +244,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.load_button.setDisabled(False)
 		self.frame_control.setDisabled(False)
 		self.timer_start()
+		self.idle.emit()
 
 	def addExpToListView(self):
 		if self.debug: print(f"ExpControl {self.etype} -> addExpToListView")
@@ -353,7 +358,7 @@ class ExpControl(QWidget, Ui_expControl):
 			self.k6482.newAverage    .connect(self.newAverage)
 
 			self.getWl         .emit()
-			self.getShuttert   .emit()
+			self.getShutter    .emit()
 			self.setChannel    .emit(e["channel"])
 			self.setVoltageFlag.emit(e["voltageFlag"])
 			self.setVoltage    .emit(e["voltage"])
@@ -524,7 +529,7 @@ class ExpControl(QWidget, Ui_expControl):
 		self.wl = float(self.wl_edit.text())
 		self.wl_edit.setStyleSheet("")
 		self.disableActiveView()
-		self.getWl.emit(self.wl)
+		self.setWl.emit(self.wl)
 	def wl_edited(self, text):
 		if len(text) == 0 or self.wl != float(text):
 			self.wl_edit.setStyleSheet("background: yellow")
@@ -553,6 +558,7 @@ class ExpControl(QWidget, Ui_expControl):
 		if len(e["sampleName"]) == 0: return
 		if e["status"] == 0:
 			self.timer_stop()
+			self.busy.emit()
 			c.e = e
 			self.start.emit()
 		elif e["status"] == 1:
@@ -597,6 +603,7 @@ class ExpControl(QWidget, Ui_expControl):
 				self.newCurve.emit()
 				self.updateData.emit(en["x"], en["y"])
 				self.addExpToListView()
+				self.idle.emit()
 				self.ended.emit()
 
 	@Slot(QStandardItem)
@@ -706,6 +713,7 @@ class ExpControl(QWidget, Ui_expControl):
 		self.link_controller()
 		self.updateActiveView()
 		self.addExpToListView()
+		self.idle.emit()
 		self.ended.emit()
 
 	@Slot()

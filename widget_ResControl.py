@@ -18,13 +18,13 @@ class ResControl(QWidget, Ui_resControl):
 	idVIS = -1
 	idIR = -1
 
-	sig_newCurve        = Signal()
-	sig_updateData      = Signal(list, list)
-	sig_updateDataIndex = Signal(int, list, list)
-	sig_show            = Signal(int)
-	sig_hide            = Signal(int)
-	sig_showAll         = Signal()
-	sig_hideAll         = Signal()
+	newCurve        = Signal()
+	updateData      = Signal(list, list)
+	updateDataIndex = Signal(int, list, list)
+	show            = Signal(int)
+	hide            = Signal(int)
+	showAll         = Signal()
+	hideAll         = Signal()
 
 	def __init__(self, exps: List, parent=None):
 		super(ResControl, self).__init__(parent)
@@ -44,12 +44,12 @@ class ResControl(QWidget, Ui_resControl):
 		self.save_button.released.connect(self.save_button_slot)
 
 	def activate(self):
-		if self.debug: print(f"ResControl {self.etype} -> activate")
+		if self.debug: print(f"ResControl -> activate")
 		if not self.activated:
 			self.activated = True
 
 	def deactivate(self):
-		if self.debug: print(f"ResControl {self.etype} -> deactivate")
+		if self.debug: print(f"ResControl -> deactivate")
 		if self.activated:
 			self.activated = False
 
@@ -95,8 +95,8 @@ class ResControl(QWidget, Ui_resControl):
 			self.exp_list_view.model().itemChanged.connect(self.onItemChanged)
 
 	@Slot()
-	def onEnded(self):
-		if self.debug: print(f"ResControl -> onEnded")
+	def ended(self):
+		if self.debug: print(f"ResControl -> ended")
 		self.addExpToListView()
 
 	def save_button_slot(self):
@@ -140,14 +140,14 @@ class ResControl(QWidget, Ui_resControl):
 		if i not in l:
 			if c:
 				l[i] = self.calc(i)
-				self.sig_updateDataIndex.emit(i, l[i][0], l[i][1])
+				self.updateDataIndex.emit(i, l[i][0], l[i][1])
 				if i != s:
-					self.sig_show.emit(i)
+					self.show.emit(i)
 		else:
 			if not c:
 				del l[i]
 				if i != s:
-					self.sig_hide.emit(i)
+					self.hide.emit(i)
 
 	@Slot(QItemSelection, QItemSelection)
 	def onSelectionChanged(self, s1: QItemSelection, s2: QItemSelection):
@@ -159,13 +159,13 @@ class ResControl(QWidget, Ui_resControl):
 			self.expSelected = i
 			if i not in l:
 				d = self.calc(i)
-				self.sig_updateDataIndex.emit(i, d[0], d[1])
-				self.sig_show.emit(i)
+				self.updateDataIndex.emit(i, d[0], d[1])
+				self.show.emit(i)
 
 		for idx in s2.indexes():
 			i = idx.row()
 			if i not in l:
-				self.sig_hide.emit(i)
+				self.hide.emit(i)
 
 	@Slot()
 	def onExit(self):
