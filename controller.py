@@ -7,16 +7,20 @@ from PySide6.QtCore import Qt, QObject, QReadWriteLock, Signal, Slot, QDateTime,
 from device_dsr import DSR
 from device_k6482 import K6482
 
+class RespState(Enum):
+	NEXT = 1
+	STEP = 2
+
 class RespController(QObject):
 	debug = False
 
-	started     = Signal()
-	paused      = Signal()
-	resumed     = Signal()
-	stoped      = Signal()
+	startDone   = Signal()
+	pauseDone   = Signal()
+	resumeDone  = Signal()
+	stopDone    = Signal()
 	dataChanged = Signal()
 
-	sig_next_point = Signal()
+	next_point = Signal()
 
 	e: dict
 
@@ -30,57 +34,15 @@ class RespController(QObject):
 		self.e = {}
 		self.startedFlag = False
 
-		self.sig_next_point.connect(self.next_point, Qt.QueuedConnection)
+		self.next_point.connect(self.next_point, Qt.QueuedConnection)
 
-	def rlock(self):
-		self.lock.lockForRead()
-
-	def wlock(self):
-		self.lock.lockForWrite()
-
-	def unlock(self):
-		self.lock.unlock()
-
-	def newExperiment(self, type: int):
-		if self.debug: print(f"RespController -> newExperiment {type}")
-		e = {}
-		if type == 0:
-			e["sampleName"]  = "Si"
-			e["startWl"]     = 300
-			e["stopWl"]      = 1100
-			e["stepWl"]      = 5
-			e["channel"]     = 2
-		elif type == 1:
-			e["sampleName"]  = "InGaAs"
-			e["startWl"]     = 900
-			e["stopWl"]      = 1700
-			e["stepWl"]      = 10
-			e["channel"]     = 2
-		elif type == 2:
-			e["sampleName"]  = ""
-			e["startWl"]     = 300
-			e["stopWl"]      = 2000
-			e["stepWl"]      = 5
-			e["channel"]     = 1
-		e["delay"]       = 0
-		e["voltageFlag"] = False
-		e["voltage"]     = 0
-		e["nplc"]        = 1
-		e["averageFlag"] = False
-		e["average"]     = 1
-		e["type"]      = type
-		e["status"]    = 0
-		e["dateTime"]  = ""
-		e["fileName"]  = ""
-		e["steps"]     = 0
-		e["currentWl"] = e["startWl"]
-		e["x"] = []
-		e["y"] = []
-		return e
+	def rlock(self) : self.lock.lockForRead()
+	def wlock(self) : self.lock.lockForWrite()
+	def unlock(self): self.lock.unlock()
 
 	@Slot()
-	def onStart(self):
-		if self.debug: print(f"RespController -> onStart")
+	def start(self):
+		if self.debug: print(f"RespController -> start")
 		e = self.e
 		e["status"] = 1
 		e["dateTime"] = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
@@ -89,33 +51,33 @@ class RespController(QObject):
 		self.startedFlag = True
 
 		# signaling
-		self.sig_next_point.emit()
-		self.started.emit()
+		self.next_point.emit()
+		self.startDone.emit()
 
 	@Slot()
-	def onPause(self):
-		if self.debug: print(f"RespController -> onPause")
+	def pause(self):
+		if self.debug: print(f"RespController -> pause")
 		if self.startedFlag:
 			self.e["status"] = 2
-			self.paused.emit()
+			self.pauseDone.emit()
 
 	@Slot()
-	def onResume(self):
-		if self.debug: print(f"RespController -> onResume")
+	def resume(self):
+		if self.debug: print(f"RespController -> resume")
 		if self.startedFlag:
 			self.e["status"] = 1
-			self.sig_next_point.emit()
-			self.resumed.emit()
+			self.next_point.emit()
+			self.resumeDone.emit()
 
 	@Slot()
-	def onStop(self):
-		if self.debug: print(f"RespController -> onStop")
+	def stop(self):
+		if self.debug: print(f"RespController -> stop")
 		if self.startedFlag:
 			e = self.e
 			e["status"] = 3
 			with open(e["fileName"], "w") as f:
 				json.dump(e, f, indent="\t")
-			self.stoped.emit()
+			self.stopDone.emit()
 
 	@Slot()
 	def next_point(self):
@@ -125,7 +87,7 @@ class RespController(QObject):
 			d = -1 if e["startWl"] > e["stopWl"] else 1
 			wl = e["startWl"] + d * e["stepWl"] * e["steps"]
 			if (d == 1 and wl > e["stopWl"]) or (d == -1 and wl < e["stopWl"]):
-				self.onStop()
+				self.stop()
 			else:
 				wl = self.dsr.setWl(wl)
 				time.sleep(e["delay"])
@@ -138,7 +100,7 @@ class RespController(QObject):
 				e["y"].append(current)
 				self.unlock()
 				self.dataChanged.emit()
-				self.sig_next_point.emit()
+				self.next_point.emit()
 
 class TimeState(Enum):
 	NEXT = 1
@@ -147,13 +109,13 @@ class TimeState(Enum):
 class TimeController(QObject):
 	debug = False
 
-	started     = Signal()
-	paused      = Signal()
-	resumed     = Signal()
-	stoped      = Signal()
+	startDone   = Signal()
+	pauseDone   = Signal()
+	resumeDone  = Signal()
+	stopDone    = Signal()
 	dataChanged = Signal()
 
-	sig_next_point = Signal()
+	next_point = Signal()
 
 	e: dict
 
@@ -176,7 +138,7 @@ class TimeController(QObject):
 		self.start_time = 0
 		self.time_stage = 0
 
-		self.sig_next_point.connect(self.next_point, Qt.QueuedConnection)
+		self.next_point.connect(self.next_point, Qt.QueuedConnection)
 
 	def rlock(self):
 		self.lock.lockForRead()
@@ -210,8 +172,8 @@ class TimeController(QObject):
 		return e
 
 	@Slot()
-	def onStart(self):
-		if self.debug: print(f"TimeController -> onStart")
+	def start(self):
+		if self.debug: print(f"TimeController -> start")
 		e = self.e
 		e["status"] = 1
 		e["dateTime"] = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
@@ -227,27 +189,27 @@ class TimeController(QObject):
 			e["duration"] = e["duration"] + es["t"]
 
 		# signaling
-		self.sig_next_point.emit()
-		self.started.emit()
+		self.next_point.emit()
+		self.startDone.emit()
 
 	@Slot()
-	def onPause(self):
-		if self.debug: print(f"TimeController -> onPause")
+	def pause(self):
+		if self.debug: print(f"TimeController -> pause")
 		if self.startedFlag:
 			self.e["status"] = 2
-			self.paused.emit()
+			self.pauseDone.emit()
 
 	@Slot()
-	def onResume(self):
-		if self.debug: print(f"TimeController -> onResume")
+	def resume(self):
+		if self.debug: print(f"TimeController -> resume")
 		if self.startedFlag:
 			self.e["status"] = 1
-			self.sig_next_point.emit()
-			self.resumed.emit()
+			self.next_point.emit()
+			self.resumeDone.emit()
 
 	@Slot()
-	def onStop(self):
-		if self.debug: print(f"TimeController -> onStop")
+	def stop(self):
+		if self.debug: print(f"TimeController -> stop")
 		if self.startedFlag:
 			self.startedFlag = False
 			e = self.e
@@ -255,7 +217,7 @@ class TimeController(QObject):
 			self.state = TimeState.NEXT
 			with open(e["fileName"], "w") as f:
 				json.dump(e, f, indent="\t")
-			self.stoped.emit()
+			self.stopDone.emit()
 
 	@Slot()
 	def next_point(self):
@@ -270,9 +232,9 @@ class TimeController(QObject):
 						self.k6482.setVoltageFlag(True)
 						self.k6482.setVoltage(e["script"][e["stage"]]["V"])
 					self.state = TimeState.STEP
-					self.sig_next_point.emit()
+					self.next_point.emit()
 				else:
-					self.onStop()
+					self.stop()
 			elif self.state == TimeState.STEP:
 				if self.debug: print(f"{self.start_time=}")
 				if self.start_time == 0:
@@ -286,11 +248,11 @@ class TimeController(QObject):
 					self.time_stage = self.time_stage + e["script"][e["stage"]]["t"]
 					e["stage"] = e["stage"] + 1
 					self.state = TimeState.NEXT
-					self.sig_next_point.emit()
+					self.next_point.emit()
 				else:
 					self.wlock()
 					e["t"] .append(e["time"])
 					e["I"] .append(self.k6482.getCurrent())
 					self.unlock()
 					self.dataChanged.emit()
-					self.sig_next_point.emit()
+					self.next_point.emit()

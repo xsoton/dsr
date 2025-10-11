@@ -70,8 +70,8 @@ class ResControl(QWidget, Ui_resControl):
 		self.exp_list_view.selectionModel().selectionChanged.connect(self.onSelectionChanged)
 
 	@Slot()
-	def onChecked(self):
-		if self.debug: print(f"ResControl -> onChecked")
+	def updateResList(self):
+		if self.debug: print(f"ResControl -> updateResList")
 		l0 = self.data[0].expCheckedList
 		if len(l0) > 0: self.idVIS = l0[-1]
 		else:           self.idVIS = -1

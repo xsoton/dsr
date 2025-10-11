@@ -17,30 +17,38 @@ from device_k6482 import K6482
 class TimeControl(QWidget, Ui_timeControl):
 	debug = True
 
-	sig_reset  = Signal()
-	sig_start  = Signal()
-	sig_pause  = Signal()
-	sig_resume = Signal()
-	sig_stop   = Signal()
-	sig_ended  = Signal()
+	reset  = Signal()
+	start  = Signal()
+	pause  = Signal()
+	resume = Signal()
+	stop   = Signal()
+	ended  = Signal()
 
-	sig_wl      = Signal(float)
-	sig_shutter = Signal(bool)
+	getWl      = Signal()
+	setWl      = Signal(float)
+	getShutter = Signal()
+	setShutter = Signal(bool)
 
-	sig_getCurrent     = Signal()
-	sig_setChannel     = Signal(int)
-	sig_setVoltageFlag = Signal(bool)
-	sig_setVoltage     = Signal(float)
-	sig_setNplc        = Signal(int)
-	sig_setAverageFlag = Signal(bool)
-	sig_setAverage     = Signal(int)
+	getCurrent     = Signal()
+	getChannel     = Signal()
+	setChannel     = Signal(int)
+	getVoltageFlag = Signal()
+	setVoltageFlag = Signal(bool)
+	getVoltage     = Signal()
+	setVoltage     = Signal(float)
+	getNplc        = Signal()
+	setNplc        = Signal(int)
+	getAverageFlag = Signal()
+	setAverageFlag = Signal(bool)
+	getAverage     = Signal()
+	setAverage     = Signal(int)
 
-	sig_newCurve   = Signal()
-	sig_updateData = Signal(list, list)
-	sig_show       = Signal(int)
-	sig_hide       = Signal(int)
-	sig_showAll    = Signal()
-	sig_hideAll    = Signal()
+	newCurve   = Signal()
+	updateData = Signal(list, list)
+	show       = Signal(int)
+	hide       = Signal(int)
+	showAll    = Signal()
+	hideAll    = Signal()
 
 	exp: dict
 	expList: List[dict]
@@ -59,20 +67,16 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.k6482 = k6482
 		self.file_dialog = QFileDialog()
 
-		self.channel     = 1
-		self.voltageFlag = False
-		self.voltage     = 0.0
-		self.nplc        = 1
-		self.averageFlag = False
-		self.average     = 1
+		self.wl = 0.0
+		self.shutter = False
 
-		self.exp = self.controller.newExperiment()
+		self.newExperiment()
 		self.expList = []
 		self.expSelected = -1
 		self.expCheckedList = []
 
 		self.timerActivated = False
-		self.sig_getCurrent.connect(self.k6482.getCurrent)
+		self.getCurrent.connect(self.k6482.getCurrent)
 
 		# initialize filters
 		re = QRegularExpression(r"[a-zA-Zа-яА-Я0-9\_][a-zA-Zа-яА-Я0-9\_\-\.]*")
@@ -105,10 +109,10 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.average_edit.setValidator(v)
 
 		self.wl = self.dsr.get_wl()
-		self.onSetWlDone(self.wl)
+		self.newWl(self.wl)
 
 		self.shutter = self.dsr.get_shutter()
-		self.onShutterDone(self.shutter)
+		self.newShutter(self.shutter)
 
 		m = QStandardItemModel()
 		m.itemChanged.connect(self.onItemChanged)
@@ -124,7 +128,7 @@ class TimeControl(QWidget, Ui_timeControl):
 		if self.debug: print(f"TimeControl -> timer_start")
 		if self.activated and not self.timerActivated and self.exp["status"] != 1:
 			self.timerActivated = True
-			self.sig_getCurrent.emit()
+			self.getCurrent.emit()
 
 	def timer_stop(self):
 		if self.debug: print(f"TimeControl -> timer_stop")
@@ -140,11 +144,11 @@ class TimeControl(QWidget, Ui_timeControl):
 			self.sample_edit.setStyleSheet("background-color: yellow")
 		else:
 			self.sample_edit.setStyleSheet("")
-		# s = ""
-		# for sc in e["script"]:
-		# 	s = s + f"{sc["t"]} {sc["V"]} {sc["wl"]} {int(sc["sh"])}\n"
-		# 	print(f"{s=}")
-		# self.exp_edit.setPlainText(s)
+		s = ""
+		for sc in e["script"]:
+			s = s + f"{sc["t"]} {sc["V"]} {sc["wl"]} {int(sc["sh"])}\n"
+			print(f"{s=}")
+		self.exp_edit.setPlainText(s)
 		self.channel1_radio.setChecked(True if e["channel"] == 1 else False)
 		self.channel2_radio.setChecked(True if e["channel"] == 2 else False)
 		self.voltage_check.setChecked(e["voltageFlag"])
@@ -155,13 +159,8 @@ class TimeControl(QWidget, Ui_timeControl):
 		self.progress_bar.setValue(int(100*e["time"]/e["duration"]))
 
 	def disableActiveView(self):
-		# self.start_button .setDisabled(True)
-		# self.stop_button  .setDisabled(True)
 		self.frame_meas   .setDisabled(True)
 		self.frame_amp    .setDisabled(True)
-		# self.frame_mono   .setDisabled(True)
-		# self.frame_control.setDisabled(True)
-		# self.exp_list_view.setDisabled(True)
 		self.timer_stop()
 
 	def updateActiveView(self):
@@ -177,7 +176,6 @@ class TimeControl(QWidget, Ui_timeControl):
 			self.frame_amp.setDisabled(False)
 			self.frame_mono.setDisabled(False)
 			self.load_button.setDisabled(False)
-			# self.exp_list_view.setDisabled(False)
 		elif e["status"] == 1:
 			self.start_button.setText("Pause")
 			self.start_button.setDisabled(False)
@@ -187,7 +185,6 @@ class TimeControl(QWidget, Ui_timeControl):
 			self.frame_amp.setDisabled(True)
 			# self.frame_mono.setDisabled(True)
 			self.load_button.setDisabled(True)
-			# self.exp_list_view.setDisabled(True)
 		elif e["status"] == 2:
 			self.start_button.setText("Resume")
 			self.start_button.setDisabled(False)
@@ -197,7 +194,6 @@ class TimeControl(QWidget, Ui_timeControl):
 			self.frame_amp.setDisabled(True)
 			self.frame_mono.setDisabled(False)
 			self.load_button.setDisabled(False)
-			# self.exp_list_view.setDisabled(True)
 		elif e["status"] == 3:
 			self.start_button.setText("Start")
 			self.start_button.setDisabled(True)
@@ -205,10 +201,10 @@ class TimeControl(QWidget, Ui_timeControl):
 			self.stop_button.setDisabled(False)
 			self.frame_meas.setDisabled(True)
 			self.frame_amp.setDisabled(True)
-			# self.frame_mono.setDisabled(True)
+			self.frame_mono.setDisabled(True)
 			self.load_button.setDisabled(False)
-			# self.exp_list_view.setDisabled(False)
 		self.frame_control.setDisabled(False)
+		self.timer_start()
 
 	def addExpToListView(self):
 		if self.debug: print(f"TimeControl -> addExpToListView")
@@ -225,62 +221,60 @@ class TimeControl(QWidget, Ui_timeControl):
 
 	def link_signals(self):
 		if self.debug: print(f"TimeControl -> link_signals")
-		self.sample_edit   .returnPressed.connect(self.sample_edit_new_slot)
-		self.sample_edit   .inputRejected.connect(self.sample_edit_rejected_slot)
-		self.sample_edit   .textEdited   .connect(self.sample_edit_edited_slot)
-		self.exp_edit      .textChanged  .connect(self.exp_edit_edited_slot)
-		self.exp_button    .released     .connect(self.exp_button_slot)
-		self.channel1_radio.clicked      .connect(self.channel1_radio_slot)
-		self.channel2_radio.clicked      .connect(self.channel2_radio_slot)
-		self.voltage_check .clicked      .connect(self.voltage_check_slot)
-		self.voltage_edit  .returnPressed.connect(self.voltage_edit_slot)
-		self.voltage_edit  .textChanged  .connect(self.voltage_edit_edited_slot)
-		self.nplc_edit     .returnPressed.connect(self.nplc_edit_slot)
-		self.nplc_edit     .textChanged  .connect(self.nplc_edit_edited_slot)
-		self.average_check .clicked      .connect(self.average_check_slot)
-		self.average_edit  .returnPressed.connect(self.average_edit_slot)
-		self.average_edit  .textChanged  .connect(self.average_edit_edited_slot)
-		self.wl_edit       .returnPressed.connect(self.wl_edit_slot)
-		self.wl_edit       .textEdited   .connect(self.wl_edit_edited_slot)
-		self.shutter_check .clicked      .connect(self.shutter_check_slot)
-		self.start_button  .released     .connect(self.start_button_slot)
-		self.stop_button   .released     .connect(self.stop_button_slot)
-		self.load_button   .released     .connect(self.onLoadPressed)
+		self.sample_edit   .returnPressed.connect(self.sample_new)
+		self.sample_edit   .inputRejected.connect(self.sample_rejected)
+		self.sample_edit   .textEdited   .connect(self.sample_edited)
+		self.exp_edit      .textChanged  .connect(self.exp_edited)
+		self.exp_button    .released     .connect(self.exp_released)
+		self.channel1_radio.clicked      .connect(self.channel1_clicked)
+		self.channel2_radio.clicked      .connect(self.channel2_clicked)
+		self.voltage_check .clicked      .connect(self.voltage_clicked)
+		self.voltage_edit  .returnPressed.connect(self.voltage_new)
+		self.voltage_edit  .textChanged  .connect(self.voltage_edited)
+		self.nplc_edit     .returnPressed.connect(self.nplc_new)
+		self.nplc_edit     .textChanged  .connect(self.nplc_edited)
+		self.average_check .clicked      .connect(self.average_clicked)
+		self.average_edit  .returnPressed.connect(self.average_new)
+		self.average_edit  .textChanged  .connect(self.average_edited)
+		self.wl_edit       .returnPressed.connect(self.wl_new)
+		self.wl_edit       .textEdited   .connect(self.wl_edited)
+		self.shutter_check .clicked      .connect(self.shutter_clicked)
+		self.start_button  .released     .connect(self.start_released)
+		self.stop_button   .released     .connect(self.stop_released)
+		self.load_button   .released     .connect(self.load_pressed)
 
-		self.sig_reset .connect(self.onReset)
+		self.reset .connect(self.onReset)
 
-		self.sig_wl         .connect(self.dsr.setWl)
-		self.sig_shutter    .connect(self.dsr.setShutter)
-		self.dsr.setWlDone  .connect(self.onSetWlDone)
-		self.dsr.shutterDone.connect(self.onShutterDone)
+	def link_controller(self):
+		if self.debug: print(f"TimeControl {self.etype} -> link_controller")
+		c = self.controller
+		self.start   .connect(c.start)
+		self.pause   .connect(c.pause)
+		self.resume  .connect(c.resume)
+		self.stop    .connect(c.stop)
+		c.startDone  .connect(self.startDone)
+		c.pauseDone  .connect(self.pauseDone)
+		c.resumeDone .connect(self.resumeDone)
+		c.stopDone   .connect(self.stopDone)
+		c.dataChanged.connect(self.dataChanged)
 
-		self.sig_setChannel          .connect(self.k6482.setChannel)
-		self.sig_setVoltageFlag      .connect(self.k6482.setVoltageFlag)
-		self.sig_setVoltage          .connect(self.k6482.setVoltage)
-		self.sig_setNplc             .connect(self.k6482.setNplc)
-		self.sig_setAverageFlag      .connect(self.k6482.setAverageFlag)
-		self.sig_setAverage          .connect(self.k6482.setAverage)
-		self.k6482.newCurrent        .connect(self.onNewCurrent)
-		self.k6482.setChannelDone    .connect(self.onSetChannelDone)
-		self.k6482.setVoltageFlagDone.connect(self.onSetVoltageFlagDone)
-		self.k6482.setVoltageDone    .connect(self.onSetVoltageDone)
-		self.k6482.setNplcDone       .connect(self.onSetNplcDone)
-		self.k6482.setAverageFlagDone.connect(self.onSetAverageFlagDone)
-		self.k6482.setAverageDone    .connect(self.onSetAverageDone)
+	def unlink_controller(self):
+		if self.debug: print(f"TimeControl {self.etype} -> unlink_controller")
+		c = self.controller
+		self.start   .disconnect(c.start)
+		self.pause   .disconnect(c.pause)
+		self.resume  .disconnect(c.resume)
+		self.stop    .disconnect(c.stop)
+		c.startDone  .disconnect(self.startDone)
+		c.pauseDone  .disconnect(self.pauseDone)
+		c.resumeDone .disconnect(self.resumeDone)
+		c.stopDone   .disconnect(self.stopDone)
+		c.dataChanged.disconnect(self.dataChanged)
 
 	def activate(self):
 		if self.debug: print(f"TimeControl -> activate")
-		c = self.controller
 		if not self.activated:
-			self.sig_start .connect(c.onStart)
-			self.sig_pause .connect(c.onPause)
-			self.sig_resume.connect(c.onResume)
-			self.sig_stop  .connect(c.onStop)
-			c.started      .connect(self.onStarted)
-			c.paused       .connect(self.onPaused)
-			c.resumed      .connect(self.onResumed)
-			c.stoped       .connect(self.onStoped)
-			c.dataChanged  .connect(self.onDataChanged)
+			self.link_controller()
 
 			self.disableActiveView()
 			e = self.exp
@@ -292,46 +286,91 @@ class TimeControl(QWidget, Ui_timeControl):
 			self.average_check .setChecked(e["averageFlag"])
 			self.average_edit  .setText(f"{e["average"]}")
 
-			self.sig_setChannel    .emit(e["channel"])
-			self.sig_setVoltageFlag.emit(e["voltageFlag"])
-			self.sig_setVoltage    .emit(e["voltage"])
-			self.sig_setNplc       .emit(e["nplc"])
-			self.sig_setAverageFlag.emit(e["averageFlag"])
-			self.sig_setAverage    .emit(e["average"])
+			self.getWl               .connect(self.dsr.getWl)
+			self.setWl               .connect(self.dsr.setWl)
+			self.getShutter          .connect(self.dsr.getShutter)
+			self.setShutter          .connect(self.dsr.setShutter)
+			self.dsr.newWl           .connect(self.newWl)
+			self.dsr.newShutter      .connect(self.newShutter)
+			self.getCurrent          .connect(self.k6482.getCurrent)
+			self.getChannel          .connect(self.k6482.getChannel)
+			self.setChannel          .connect(self.k6482.setChannel)
+			self.getVoltageFlag      .connect(self.k6482.getVoltageFlag)
+			self.setVoltageFlag      .connect(self.k6482.setVoltageFlag)
+			self.getVoltage          .connect(self.k6482.getVoltage)
+			self.setVoltage          .connect(self.k6482.setVoltage)
+			self.getNplc             .connect(self.k6482.getNplc)
+			self.setNplc             .connect(self.k6482.setNplc)
+			self.getAverageFlag      .connect(self.k6482.getAverageFlag)
+			self.setAverageFlag      .connect(self.k6482.setAverageFlag)
+			self.getAverage          .connect(self.k6482.getAverage)
+			self.setAverage          .connect(self.k6482.setAverage)
+			self.k6482.newCurrent    .connect(self.newCurrent)
+			self.k6482.newChannel    .connect(self.newChannel)
+			self.k6482.newVoltageFlag.connect(self.newVoltageFlag)
+			self.k6482.newVoltage    .connect(self.newVoltage)
+			self.k6482.newNplc       .connect(self.newNplc)
+			self.k6482.newAverageFlag.connect(self.newAverageFlag)
+			self.k6482.newAverage    .connect(self.newAverage)
+
+			self.setChannel    .emit(e["channel"])
+			self.setVoltageFlag.emit(e["voltageFlag"])
+			self.setVoltage    .emit(e["voltage"])
+			self.setNplc       .emit(e["nplc"])
+			self.setAverageFlag.emit(e["averageFlag"])
+			self.setAverage    .emit(e["average"])
 
 			self.activated = True
 			self.timer_start()
 
 	def deactivate(self):
 		if self.debug: print(f"TimeControl -> deactivate")
-		c = self.controller
 		if self.activated:
-			self.sig_start .disconnect(c.onStart)
-			self.sig_pause .disconnect(c.onPause)
-			self.sig_resume.disconnect(c.onResume)
-			self.sig_stop  .disconnect(c.onStop)
-			c.started      .disconnect(self.onStarted)
-			c.paused       .disconnect(self.onPaused)
-			c.resumed      .disconnect(self.onResumed)
-			c.stoped       .disconnect(self.onStoped)
-			c.dataChanged  .disconnect(self.onDataChanged)
+			self.unlink_controller()
 			self.timer_stop()
 			self.activated = False
 
-	def sample_edit_new_slot(self):
-		if self.debug: print(f"TimeControl -> sample_edit_new_slot")
+			self.getWl               .disconnect(self.dsr.getWl)
+			self.setWl               .disconnect(self.dsr.setWl)
+			self.getShutter          .disconnect(self.dsr.getShutter)
+			self.setShutter          .disconnect(self.dsr.setShutter)
+			self.dsr.newWl           .disconnect(self.newWl)
+			self.dsr.newShutter      .disconnect(self.newShutter)
+			self.getCurrent          .disconnect(self.k6482.getCurrent)
+			self.getChannel          .disconnect(self.k6482.getChannel)
+			self.setChannel          .disconnect(self.k6482.setChannel)
+			self.getVoltageFlag      .disconnect(self.k6482.getVoltageFlag)
+			self.setVoltageFlag      .disconnect(self.k6482.setVoltageFlag)
+			self.getVoltage          .disconnect(self.k6482.getVoltage)
+			self.setVoltage          .disconnect(self.k6482.setVoltage)
+			self.getNplc             .disconnect(self.k6482.getNplc)
+			self.setNplc             .disconnect(self.k6482.setNplc)
+			self.getAverageFlag      .disconnect(self.k6482.getAverageFlag)
+			self.setAverageFlag      .disconnect(self.k6482.setAverageFlag)
+			self.getAverage          .disconnect(self.k6482.getAverage)
+			self.setAverage          .disconnect(self.k6482.setAverage)
+			self.k6482.newCurrent    .disconnect(self.newCurrent)
+			self.k6482.newChannel    .disconnect(self.newChannel)
+			self.k6482.newVoltageFlag.disconnect(self.newVoltageFlag)
+			self.k6482.newVoltage    .disconnect(self.newVoltage)
+			self.k6482.newNplc       .disconnect(self.newNplc)
+			self.k6482.newAverageFlag.disconnect(self.newAverageFlag)
+			self.k6482.newAverage    .disconnect(self.newAverage)
+
+	def sample_new(self):
+		if self.debug: print(f"TimeControl -> sample_new")
 		self.exp["sampleName"] = self.sample_edit.text()
 		self.sample_edit.setStyleSheet("")
-	def sample_edit_edited_slot(self, text):
-		if self.debug: print(f"TimeControl -> sample_edit_edited_slot")
+	def sample_edited(self, text):
+		if self.debug: print(f"TimeControl -> sample_edited")
 		if len(text) == 0 or self.exp["sampleName"] != text:
 			self.sample_edit.setStyleSheet("background: yellow; color: black")
-	def sample_edit_rejected_slot(self):
-		if self.debug: print(f"TimeControl -> sample_edit_rejected_slot")
+	def sample_rejected(self):
+		if self.debug: print(f"TimeControl -> sample_rejected")
 		self.sample_edit.setStyleSheet("background: red; color: white")
 
-	def exp_button_slot(self):
-		if self.debug: print(f"TimeControl -> exp_button_slot")
+	def exp_released(self):
+		if self.debug: print(f"TimeControl -> exp_released")
 		text = self.exp_edit.toPlainText()
 		a = text.strip().split('\n')
 		self.exp["script"] = []
@@ -359,175 +398,166 @@ class TimeControl(QWidget, Ui_timeControl):
 					self.exp_edit.setStyleSheet("background: red; color: white")
 			else:
 				self.exp_edit.setStyleSheet("background: red; color: white")
-	def exp_edit_edited_slot(self):
-		if self.debug: print(f"TimeControl -> exp_edit_edited_slot")
+	def exp_edited(self):
+		if self.debug: print(f"TimeControl -> exp_edited")
 		self.exp_edit.setStyleSheet("background: yellow")
 
-	def channel1_radio_slot(self):
+	def channel1_clicked(self):
 		self.exp["channel"] = 1 if self.channel1_radio.isChecked() else 2
 		self.disableActiveView()
-		self.sig_setChannel.emit(self.exp["channel"])
-	def channel2_radio_slot(self):
+		self.setChannel.emit(self.exp["channel"])
+	def channel2_clicked(self):
 		self.exp["channel"] = 2 if self.channel2_radio.isChecked() else 1
 		self.disableActiveView()
-		self.sig_setChannel.emit(self.exp["channel"])
+		self.setChannel.emit(self.exp["channel"])
 	@Slot(int)
-	def onSetChannelDone(self, channel: int):
-		if self.debug: print(f"TimeControl -> onSetChannelDone")
+	def newChannel(self, channel: int):
+		if self.debug: print(f"TimeControl -> newChannel")
 		self.channel1_radio.setChecked(True if channel == 1 else False)
 		if self.activated: self.exp["channel"] = 1 if channel == 1 else 2
 		self.updateActiveView()
 		self.timer_start()
 
-	def voltage_check_slot(self):
+	def voltage_clicked(self):
 		self.exp["voltageFlag"] = self.voltage_check.isChecked()
 		self.disableActiveView()
-		self.sig_setVoltageFlag.emit(self.exp["voltageFlag"])
+		self.setVoltageFlag.emit(self.exp["voltageFlag"])
 	@Slot(bool)
-	def onSetVoltageFlagDone(self, voltageFlag: bool):
-		if self.debug: print(f"TimeControl -> onSetVoltageFlagDone")
+	def newVoltageFlag(self, voltageFlag: bool):
+		if self.debug: print(f"TimeControl -> newVoltageFlag")
 		self.voltage_check.setChecked(voltageFlag)
 		if self.activated: self.exp["voltageFlag"] = voltageFlag
 		self.updateActiveView()
 		self.timer_start()
 
-	def voltage_edit_slot(self):
-		if self.debug: print(f"TimeControl -> voltage_edit_slot")
-		self.voltage = float(self.voltage_edit.text())
-		self.exp["voltage"] = self.voltage
+	def voltage_new(self):
+		if self.debug: print(f"TimeControl -> voltage_new")
+		self.exp["voltage"] = float(self.voltage_edit.text())
 		self.voltage_edit.setStyleSheet("")
 		self.disableActiveView()
-		self.sig_setVoltage.emit(self.exp["voltage"])
-	def voltage_edit_edited_slot(self, text):
-		if self.debug: print(f"TimeControl -> voltage_edit_edited_slot")
+		self.setVoltage.emit(self.exp["voltage"])
+	def voltage_edited(self, text):
+		if self.debug: print(f"TimeControl -> voltage_edited")
 		if len(text) == 0 or self.k6482.voltage != float(text):
 			self.voltage_edit.setStyleSheet("background: yellow")
 		else:
 			self.voltage_edit.setStyleSheet("background: green; color: white")
 	@Slot(float)
-	def onSetVoltageDone(self, voltage: float):
-		if self.debug: print(f"TimeControl -> onSetVoltageDone")
+	def newVoltage(self, voltage: float):
+		if self.debug: print(f"TimeControl -> newVoltage")
 		self.voltage_edit.setStyleSheet("background: green; color: white")
 		self.voltage_edit.setText(f"{voltage}")
-		if self.activated:
-			self.exp["voltage"] = voltage
-			self.voltage = voltage
+		if self.activated: self.exp["voltage"] = voltage
 		self.updateActiveView()
 		self.timer_start()
 
-	def nplc_edit_slot(self):
-		if self.debug: print(f"TimeControl -> nplc_edit_slot")
-		self.nplc = int(self.nplc_edit.text())
-		self.exp["nplc"] = self.nplc
+	def nplc_new(self):
+		if self.debug: print(f"TimeControl -> nplc_new")
+		self.exp["nplc"] = int(self.nplc_edit.text())
 		self.nplc_edit.setStyleSheet("")
 		self.disableActiveView()
-		self.sig_setNplc.emit(self.exp["nplc"])
-	def nplc_edit_edited_slot(self, text):
-		if self.debug: print(f"TimeControl -> nplc_edit_edited_slot")
+		self.setNplc.emit(self.exp["nplc"])
+	def nplc_edited(self, text):
+		if self.debug: print(f"TimeControl -> nplc_edited")
 		if len(text) == 0 or self.k6482.nplc != int(text):
 			self.nplc_edit.setStyleSheet("background: yellow")
 		else:
 			self.nplc_edit.setStyleSheet("background: green; color: white")
 	@Slot(int)
-	def onSetNplcDone(self, nplc: int):
-		if self.debug: print(f"TimeControl -> onSetNplcDone")
+	def newNplc(self, nplc: int):
+		if self.debug: print(f"TimeControl -> newNplc")
 		self.nplc_edit.setStyleSheet("background: green; color: white")
 		self.nplc_edit.setText(f"{nplc}")
-		if self.activated:
-			self.exp["nplc"] = nplc
-			self.nplc = nplc
+		if self.activated: self.exp["nplc"] = nplc
 		self.updateActiveView()
 		self.timer_start()
 
-	def average_check_slot(self):
+	def average_clicked(self):
 		self.exp["averageFlag"] = self.average_check.isChecked()
 		self.disableActiveView()
-		self.sig_setAverageFlag.emit(self.exp["averageFlag"])
+		self.setAverageFlag.emit(self.exp["averageFlag"])
 	@Slot(bool)
-	def onSetAverageFlagDone(self, averageFlag: bool):
-		if self.debug: print(f"TimeControl -> onSetAverageFlagDone")
+	def newAverageFlag(self, averageFlag: bool):
+		if self.debug: print(f"TimeControl -> newAverageFlag")
 		self.average_check.setChecked(averageFlag)
 		if self.activated: self.exp["averageFlag"] = averageFlag
 		self.updateActiveView()
 		self.timer_start()
 
-	def average_edit_slot(self):
-		if self.debug: print(f"TimeControl -> average_edit_slot")
-		self.average = int(self.average_edit.text())
-		self.exp["average"] = self.average
+	def average_new(self):
+		if self.debug: print(f"TimeControl -> average_new")
+		self.exp["average"] = int(self.average_edit.text())
 		self.average_edit.setStyleSheet("")
 		self.disableActiveView()
-		self.sig_setAverage.emit(self.exp["average"])
-	def average_edit_edited_slot(self, text):
-		if self.debug: print(f"TimeControl -> average_edit_edited_slot")
+		self.setAverage.emit(self.exp["average"])
+	def average_edited(self, text):
+		if self.debug: print(f"TimeControl -> average_edited")
 		if len(text) == 0 or self.k6482.average != int(text):
 			self.average_edit.setStyleSheet("background: yellow")
 		else:
 			self.average_edit.setStyleSheet("background: green; color: white")
 	@Slot(int)
-	def onSetAverageDone(self, average: int):
-		if self.debug: print(f"TimeControl -> onSetAverageDone")
+	def newAverage(self, average: int):
+		if self.debug: print(f"TimeControl -> newAverage")
 		self.average_edit.setStyleSheet("background: green; color: white")
 		self.average_edit.setText(f"{average}")
-		if self.activated:
-			self.exp["average"] = average
-			self.average = average
+		if self.activated: self.exp["average"] = average
 		self.updateActiveView()
 		self.timer_start()
 
-	def wl_edit_slot(self):
+	def wl_new(self):
 		self.wl = float(self.wl_edit.text())
 		self.wl_edit.setStyleSheet("")
 		self.disableActiveView()
-		self.sig_wl.emit(self.wl)
-	def wl_edit_edited_slot(self, text):
+		self.setWl.emit(self.wl)
+	def wl_edited(self, text):
 		if len(text) == 0 or self.wl != float(text):
 			self.wl_edit.setStyleSheet("background: yellow")
 	@Slot(float)
-	def onSetWlDone(self, wl: float):
-		if self.debug: print(f"TimeControl -> onSetWlDone {wl}")
+	def newWl(self, wl: float):
+		if self.debug: print(f"TimeControl -> newWl {wl}")
 		self.wl = wl
 		self.wl_edit.setText(f"{self.wl:.3f}")
 		self.wl_edit.setStyleSheet("background: green; color: white")
 		self.updateActiveView()
 		self.timer_start()
 
-	def shutter_check_slot(self):
+	def shutter_clicked(self):
 		self.shutter = self.shutter_check.isChecked()
 		self.disableActiveView()
-		self.sig_shutter.emit(self.shutter)
+		self.setShutter.emit(self.shutter)
 	@Slot(bool)
-	def onShutterDone(self, shutter: bool):
-		if self.debug: print(f"TimeControl -> onShutterDone {shutter}")
+	def newShutter(self, shutter: bool):
+		if self.debug: print(f"TimeControl -> newShutter {shutter}")
 		self.shutter = shutter
 		self.shutter_check.setCheckState(Qt.Checked if self.shutter else Qt.Unchecked)
 		self.updateActiveView()
 		self.timer_start()
 
-	def start_button_slot(self):
-		if self.debug: print(f"TimeControl -> start_button_slot")
+	def start_released(self):
+		if self.debug: print(f"TimeControl -> start_released")
 		e = self.exp
 		c = self.controller
 		if len(e["sampleName"]) == 0: return
 		if e["status"] == 0:
-			self.timer_stop();
-			c.e = e;
-			self.sig_start.emit()
+			self.timer_stop()
+			c.e = e
+			self.start.emit()
 		elif e["status"] == 1:
-			self.sig_pause.emit()
+			self.pause.emit()
 		elif e["status"] == 2:
 			self.timer_stop();
-			self.sig_resume.emit()
+			self.resume.emit()
 
-	def stop_button_slot(self):
-		if self.debug: print(f"TimeControl -> stop_button_slot")
+	def stop_released(self):
+		if self.debug: print(f"TimeControl -> stop_released")
 		e = self.exp
-		if   e["status"] == 0: self.sig_reset.emit()
-		elif e["status"] == 1: self.sig_stop.emit()
-		elif e["status"] == 2: self.sig_stop.emit()
+		if   e["status"] == 0: self.reset.emit()
+		elif e["status"] == 1: self.stop.emit()
+		elif e["status"] == 2: self.stop.emit()
 
-	def onLoadPressed(self):
-		if self.debug: print(f"TimeControl -> onLoadPressed")
+	def load_pressed(self):
+		if self.debug: print(f"TimeControl -> load_pressed")
 		file_filters = 'JSON File (*.json);; All (*.*)'
 		response = self.file_dialog.getOpenFileNames(
 			parent = self,
@@ -553,10 +583,9 @@ class TimeControl(QWidget, Ui_timeControl):
 						a = False
 			if a:
 				self.expList.append(en)
-				self.sig_newCurve.emit()
-				self.sig_updateData.emit(en["t"], en["I"])
+				self.newCurve.emit()
+				self.updateData.emit(en["t"], en["I"])
 				self.addExpToListView()
-				self.sig_ended.emit()
 
 	@Slot(QStandardItem)
 	def onItemChanged(self, item: QStandardItem):
@@ -570,12 +599,12 @@ class TimeControl(QWidget, Ui_timeControl):
 			if c:
 				l.append(i)
 				# if i != s:
-				self.sig_show.emit(i)
+				self.show.emit(i)
 		else:
 			if not c:
 				l.remove(i)
 				# if i != s:
-				self.sig_hide.emit(i)
+				self.hide.emit(i)
 
 	@Slot(QItemSelection, QItemSelection)
 	def onSelectionChanged(self, s1: QItemSelection, s2: QItemSelection):
@@ -586,12 +615,12 @@ class TimeControl(QWidget, Ui_timeControl):
 			i = idx.row()
 			self.expSelected = i
 			if i not in l:
-				self.sig_show.emit(i)
+				self.show.emit(i)
 
 		for idx in s2.indexes():
 			i = idx.row()
 			if i not in l:
-				self.sig_hide.emit(i)
+				self.hide.emit(i)
 
 		e = self.exp
 		e1 = self.expList[self.expSelected]
@@ -613,39 +642,40 @@ class TimeControl(QWidget, Ui_timeControl):
 	def onReset(self):
 		if self.debug: print(f"TimeControl -> onReset")
 		del self.exp
-		self.exp = self.controller.newExperiment()
+		self.newExperiment()
 		self.updateExpView()
 
 	@Slot(int)
-	def onStarted(self):
-		if self.debug: print(f"TimeControl -> onStarted")
+	def startDone(self):
+		if self.debug: print(f"TimeControl -> startDone")
 		self.updateActiveView()
 		i = self.expSelected
 		l = self.expCheckedList
 		if i >= 0 and i not in l:
-			self.sig_hide.emit(self.expSelected)
-		self.sig_newCurve.emit()
+			self.hide.emit(self.expSelected)
+		self.newCurve.emit()
 
 	@Slot(int)
-	def onPaused(self):
-		if self.debug: print(f"TimeControl -> onPaused")
+	def pauseDone(self):
+		if self.debug: print(f"TimeControl -> pauseDone")
 		self.timer_start()
 		self.updateActiveView()
 
 	@Slot(int)
-	def onResumed(self):
-		if self.debug: print(f"TimeControl -> onResumed")
+	def resumeDone(self):
+		if self.debug: print(f"TimeControl -> resumeDone")
 		self.updateActiveView()
 
 	@Slot(int)
-	def onStoped(self):
-		if self.debug: print(f"TimeControl -> onStoped")
+	def stopDone(self):
+		if self.debug: print(f"TimeControl -> stopDone")
 		self.timer_start()
 		self.deactivate()
 		self.expList.append(self.exp)
 		self.expSelected = len(self.expList)-1
 
-		e = self.controller.newExperiment()
+		self.newExperiment()
+		e = self.exp
 		e["sampleName"]  = self.exp["sampleName"]
 		e["script"]      = self.exp["script"]
 		e["channel"]     = self.exp["channel"]
@@ -656,15 +686,13 @@ class TimeControl(QWidget, Ui_timeControl):
 		e["average"]     = self.exp["average"]
 		e["time"]        = self.exp["time"]
 		e["duration"]    = self.exp["duration"]
-		self.exp = e
 		self.activate()
 		self.updateActiveView()
 		self.addExpToListView()
-		self.sig_ended.emit()
 
 	@Slot()
-	def onDataChanged(self):
-		if self.debug: print(f"TimeControl -> onDataChanged")
+	def dataChanged(self):
+		if self.debug: print(f"TimeControl -> dataChanged")
 		e = self.exp
 		c = self.controller
 		# print(e)
@@ -673,15 +701,15 @@ class TimeControl(QWidget, Ui_timeControl):
 		x = e["t"]
 		y = e["I"]
 		c.unlock()
-		self.sig_updateData.emit(x, y)
+		self.updateData.emit(x, y)
 
 	@Slot(float, float)
-	def onNewCurrent(self, c1: float, c2: float):
-		# if self.debug: print(f"TimeControl -> onNewCurrent {c1}, {c2}")
+	def newCurrent(self, c1: float, c2: float):
+		# if self.debug: print(f"TimeControl -> newCurrent {c1}, {c2}")
 		self.current1_label.setText(f"{c1:+.5e}")
 		self.current2_label.setText(f"{c2:+.5e}")
 		if self.timerActivated:
-			self.sig_getCurrent.emit()
+			self.getCurrent.emit()
 
 	@Slot()
 	def onExit(self):

@@ -16,8 +16,8 @@ class DSR(QObject):
 
 	error = List[str]
 
-	shutterDone = Signal(bool)
-	setWlDone   = Signal(float)
+	newShutter = Signal(bool)
+	newWl      = Signal(float)
 
 	def __init__(self, filename: str, parent=None):
 		super(DSR, self).__init__(parent)
@@ -347,14 +347,14 @@ class DSR(QObject):
 	def getShutter(self):
 		if self.debug: print(f"DSR -> getShutter")
 		self.get_shutter()
-		self.shutterDone.emit(self.sh)
+		self.newShutter.emit(self.sh)
 		return self.sh
 
 	@Slot(bool)
 	def setShutter(self, sh: bool):
 		if self.debug: print(f"DSR -> setShutter")
 		self.set_shutter(sh)
-		self.shutterDone.emit(self.sh)
+		self.newShutter.emit(self.sh)
 
 	def set_exitport(self, ep):
 		i = self.cmd_get_exitport()
@@ -370,7 +370,7 @@ class DSR(QObject):
 	def getWl(self):
 		if self.debug: print(f"DSR -> getWl")
 		self.get_wl()
-		self.setWlDone.emit(self.wl)
+		self.newWl.emit(self.wl)
 		return self.wl
 
 	@Slot(float)
@@ -409,7 +409,7 @@ class DSR(QObject):
 			self.set_shutter(sh)
 		# print(self.error)
 		self.clear_error()
-		self.setWlDone.emit(self.wl)
+		self.newWl.emit(self.wl)
 		return self.wl
 
 	def get_error(self):
