@@ -1,9 +1,9 @@
-objects = mainWindow.py expControl.py resControl.py
+objects = ui_mainWindow.py ui_expControl.py ui_resControl.py ui_timeControl.py
 
 all: $(objects)
 .PHONY: all
 
-$(objects): %.py: ui/%.ui
+$(objects): ui_%.py: ui/%.ui
 	pyside6-uic $< -o $@
 
 clean:

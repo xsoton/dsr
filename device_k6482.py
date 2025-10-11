@@ -14,13 +14,13 @@ class K6482(QObject):
 	averageFlag: bool
 	average: int
 
-	newCurrent         = Signal(float, float)
-	setChannelDone     = Signal(int)
-	setVoltageFlagDone = Signal(bool)
-	setVoltageDone     = Signal(float)
-	setNplcDone        = Signal(int)
-	setAverageFlagDone = Signal(bool)
-	setAverageDone     = Signal(int)
+	newCurrent     = Signal(float, float)
+	newChannel     = Signal(int)
+	newVoltageFlag = Signal(bool)
+	newVoltage     = Signal(float)
+	newNplc        = Signal(int)
+	newAverageFlag = Signal(bool)
+	newAverage     = Signal(int)
 
 	def __init__(self, filename: str, parent=None):
 		super(K6482, self).__init__(parent)
@@ -240,87 +240,90 @@ class K6482(QObject):
 		if self.debug: print(f"K6482 -> getChannel")
 		self.get_channel()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setChannelDone.emit(self.channel)
+		self.newChannel.emit(self.channel)
+		return self.channel
 
 	@Slot(int)
 	def setChannel(self, channel: int):
 		if self.debug: print(f"K6482 -> setChannel {channel}")
 		self.set_channel(channel)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setChannelDone.emit(self.channel)
+		self.newChannel.emit(self.channel)
 
 	@Slot()
 	def getVoltageFlag(self):
 		if self.debug: print(f"K6482 -> getVoltageFlag")
 		self.get_output()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setVoltageFlagDone.emit(self.voltageFlag)
+		self.newVoltageFlag.emit(self.voltageFlag)
+		return self.voltageFlag
 
 	@Slot(bool)
 	def setVoltageFlag(self, voltageFlag: bool):
 		if self.debug: print(f"K6482 -> setVoltageFlag {voltageFlag}")
 		self.set_output(voltageFlag)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setVoltageFlagDone.emit(self.voltageFlag)
+		self.newVoltageFlag.emit(self.voltageFlag)
 
 	@Slot()
 	def getVoltage(self):
 		if self.debug: print(f"K6482 -> getVoltage")
 		self.get_voltage()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setVoltageDone.emit(self.voltage)
+		self.newVoltage.emit(self.voltage)
+		return self.voltage
 
 	@Slot(float)
 	def setVoltage(self, voltage: float):
 		if self.debug: print(f"K6482 -> setVoltage {voltage}")
 		self.set_voltage(voltage)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setVoltageDone.emit(self.voltage)
+		self.newVoltage.emit(self.voltage)
 
 	@Slot()
 	def getNplc(self):
 		if self.debug: print(f"K6482 -> getNplc")
 		self.get_nplc()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setNplcDone.emit(self.nplc)
+		self.newNplc.emit(self.nplc)
+		return self.nplc
 
 	@Slot(int)
 	def setNplc(self, nplc: int):
 		if self.debug: print(f"K6482 -> setNplc {nplc}")
 		self.set_nplc(nplc)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setNplcDone.emit(self.nplc)
+		self.newNplc.emit(self.nplc)
 
 	@Slot()
 	def getAverageFlag(self):
 		if self.debug: print(f"K6482 -> getAverageFlag")
 		self.get_averageFlag()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setAverageFlagDone.emit(self.averageFlag)
+		self.newAverageFlag.emit(self.averageFlag)
+		return self.averageFlag
 
 	@Slot(bool)
 	def setAverageFlag(self, averageFlag: bool):
 		if self.debug: print(f"K6482 -> setAverageFlag {averageFlag}")
 		self.set_averageFlag(averageFlag)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setAverageFlagDone.emit(self.averageFlag)
+		self.newAverageFlag.emit(self.averageFlag)
 
 	@Slot()
 	def getAverage(self):
 		if self.debug: print(f"K6482 -> getAverage")
 		self.get_average()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setAverageDone.emit(self.average)
+		self.newAverage.emit(self.average)
+		return self.average
 
 	@Slot(int)
 	def setAverage(self, average: int):
 		if self.debug: print(f"K6482 -> setAverage {average}")
 		self.set_average(average)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.setAverageDone.emit(self.average)
+		self.newAverage.emit(self.average)
 
-	def get_error(self):
-		return self.error
-
-	def clear_error(self):
-		self.error.clear()
+	def get_error(self): return self.error
+	def clear_error(self): self.error.clear()

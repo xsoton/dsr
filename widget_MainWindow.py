@@ -6,10 +6,11 @@ import sys
 import pyqtgraph as pg
 
 from ui_mainWindow import Ui_MainWindow
-from widget_PlotWidget import PlotWidget
-from widget_ExpControl import ExpControl
-from widget_ResControl import ResControl
-from controller import Controller
+from widget_PlotWidget  import PlotWidget
+from widget_ExpControl  import ExpControl
+from widget_ResControl  import ResControl
+from widget_TimeControl import TimeControl
+from controller import RespController, TimeController
 from device_dsr import DSR
 from device_k6482 import K6482
 
@@ -35,7 +36,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.k6482 = K6482("GPIB0::25::INSTR")
 		self.k6482.open()
 
-		self.controller = Controller(self.dsr, self.k6482)
+		self.respController = RespController(self.dsr, self.k6482)
+		self.timeController = TimeController(self.dsr, self.k6482)
 
 		self.eThread = QThread()
 		self.eThread.finished.connect(self.eThread.deleteLater)
@@ -44,30 +46,34 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.eThread.finished.connect(self.dsr.close)
 		self.eThread.finished.connect(self.dsr.deleteLater)
 		self.eThread.finished.connect(self.k6482.deleteLater)
-		self.eThread.finished.connect(self.controller.onStop)
-		self.eThread.finished.connect(self.controller.deleteLater)
+		self.eThread.finished.connect(self.respController.stop)
+		self.eThread.finished.connect(self.respController.deleteLater)
+		self.eThread.finished.connect(self.timeController.stop)
+		self.eThread.finished.connect(self.timeController.deleteLater)
 
-		self.dsr       .moveToThread(self.eThread)
-		self.k6482     .moveToThread(self.eThread)
-		self.controller.moveToThread(self.eThread)
+		self.dsr           .moveToThread(self.eThread)
+		self.k6482         .moveToThread(self.eThread)
+		self.respController.moveToThread(self.eThread)
+		self.timeController.moveToThread(self.eThread)
 
-		n = ["Si", "InGaAs", "Sample", "Result"]
+		n = ["Si", "InGaAs", "Sample", "Result", "Time"]
 		self.exps = []
+		self.time = None
 
 		for i in range(3):
 			p = PlotWidget()
-			e = ExpControl(i, self.controller, self.dsr, self.k6482)
+			e = ExpControl(i, self.respController, self.dsr, self.k6482)
 			self.exps.append(e)
 
 			# self.sig_exit   .connect(e.onExit)
-			e.sig_newCurve  .connect(p.newCurve)
-			e.sig_updateData.connect(p.updateData)
-			e.sig_show      .connect(p.show)
-			e.sig_hide      .connect(p.hide)
-			e.sig_showAll   .connect(p.showAll)
-			e.sig_hideAll   .connect(p.hideAll)
-			e.sig_start     .connect(self.disableTabBar)
-			e.sig_ended     .connect(self.enableTabBar)
+			e.newCurve  .connect(p.newCurve)
+			e.updateData.connect(p.updateData)
+			e.show      .connect(p.show)
+			e.hide      .connect(p.hide)
+			e.showAll   .connect(p.showAll)
+			e.hideAll   .connect(p.hideAll)
+			e.busy      .connect(self.disableTabBar)
+			e.idle      .connect(self.enableTabBar)
 
 			l = QHBoxLayout()
 			l.addWidget(p)
@@ -79,33 +85,51 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		p = PlotWidget()
 		r = ResControl(self.exps)
-
+		self.exps.append(r)
 		p.setYLabel("Responsivity, A/W")
-
 		# self.sig_exit.connect(e.onExit)
-		r.sig_updateData.connect(p.updateData)
-		r.sig_show      .connect(p.show)
-		r.sig_hide      .connect(p.hide)
-		r.sig_showAll   .connect(p.showAll)
-		r.sig_hideAll   .connect(p.hideAll)
-		r.sig_updateDataIndex.connect(p.updateDataIndex)
-
+		r.updateData     .connect(p.updateData)
+		r.show           .connect(p.show)
+		r.hide           .connect(p.hide)
+		r.showAll        .connect(p.showAll)
+		r.hideAll        .connect(p.hideAll)
+		r.updateDataIndex.connect(p.updateDataIndex)
 		l = QHBoxLayout()
 		l.addWidget(p)
 		l.addWidget(r)
-
 		w = QWidget()
 		w.setLayout(l)
 		self.tabs.addTab(w, n[3])
 
-		self.tabs.currentChanged.connect(self.onTabChanged)
+		self.exps[0].updateResList .connect(r.updateResList)
+		self.exps[1].updateResList .connect(r.updateResList)
+		self.exps[2].updateResList .connect(r.updateResList)
+		self.exps[2].ended         .connect(r.ended)
+		self.exps[2].newCurve      .connect(p.newCurve)
 
-		self.exps[0].sig_checked .connect(r.onChecked)
-		self.exps[1].sig_checked .connect(r.onChecked)
-		self.exps[2].sig_checked .connect(r.onChecked)
-		self.exps[2].sig_ended   .connect(r.onEnded)
-		self.exps[2].sig_newCurve.connect(p.newCurve)
-		
+		p = PlotWidget()
+		e = TimeControl(self.timeController, self.dsr, self.k6482)
+		self.exps.append(e)
+		self.time = e
+		p.setXLabel("Time, s")
+		p.setYLabel("Current, A")
+		# self.sig_exit   .connect(e.onExit)
+		e.newCurve  .connect(p.newCurve)
+		e.updateData.connect(p.updateData)
+		e.show      .connect(p.show)
+		e.hide      .connect(p.hide)
+		e.showAll   .connect(p.showAll)
+		e.hideAll   .connect(p.hideAll)
+		e.busy      .connect(self.disableTabBar)
+		e.idle      .connect(self.enableTabBar)
+		l = QHBoxLayout()
+		l.addWidget(p)
+		l.addWidget(e)
+		w = QWidget()
+		w.setLayout(l)
+		self.tabs.addTab(w, n[4])
+
+		self.tabs.currentChanged.connect(self.onTabChanged)
 		self.onTabChanged(0)
 
 	@Slot()
@@ -122,7 +146,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def onTabChanged(self, index: int):
 		if self.debug: print(f"MainWindow -> onTabChanged {index}")
 		self.index = index
-		for i in range(3):
+		for i in range(len(self.exps)):
 			if i == index:
 				self.exps[i].activate()
 			else:
@@ -132,7 +156,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		if self.debug: print(f"MainWindow -> closeEvent index = {self.index}")
 		if self.index < 3:
 			self.exps[self.index].onExit()
-			self.controller.onStop()
+			self.respController.stop()
+		if self.index == 4:
+			self.time.onExit()
+			self.timeController.stop()
 		self.eThread.quit()
 		self.eThread.wait()
 		event.accept()

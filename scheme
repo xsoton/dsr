@@ -1,0 +1,139 @@
+=== ExpControl <-> RespController ===
+
+start      -> start
+startDone  <- startDone
+
+pause      -> pause
+pauseDone  <- pauseDone
+
+resume     -> resume
+resumeDone <- resumeDone
+
+stop       -> stop
+stopDone   <- stopDone
+
+dataChanged <- dataChanged
+
+
+=== ExpControl <-> PlotwWidget ===
+
+newCurve   -> newCurve
+updateData -> updateData
+show       -> show
+hide       -> hide
+showAll    -> showAll
+hideAll    -> hideAll
+
+
+=== ExpControl <-> DSR ===
+
+getWl -> getWl
+setWl -> setWl
+newWl <- newWl
+
+getShutter -> getShutter
+setShutter -> setShutter
+newShutter -> newShutter
+
+
+=== ExpControl <-> K6482 ===
+
+getCurrent     -> getCurrent
+newCurrent     <- newCurrent
+
+getChannel     -> getChannel
+setChannel     -> setChannel
+newChannel     <- newChannel
+
+getVoltageFlag -> getVoltageFlag
+setVoltageFlag -> setVoltageFlag
+newVoltageFlag <- newVoltageFlag
+
+getVoltage     -> getVoltage
+setVoltage     -> setVoltage
+newVoltage     <- newVoltage
+
+getNplc        -> getNplc
+setNplc        -> setNplc
+newNplc        <- newNplc
+
+getAverageFlag -> getAverageFlag
+setAverageFlag -> setAverageFlag
+newAverageFlag <- newAverageFlag
+
+getAverage     -> getAverage
+setAverage     -> setAverage
+newAverage     <- newAverage
+
+
+=== ExpControl <-> ResControl ===
+
+updateResList -> updateResList
+
+
+=== TimeControl <-> TimeController ===
+
+start      -> start
+startDone  <- startDone
+
+pause      -> pause
+pauseDone  <- pauseDone
+
+resume     -> resume
+resumeDone <- resumeDone
+
+stop       -> stop
+stopDone   <- stopDone
+
+dataChanged <- dataChanged
+
+
+=== TimeControl <-> PlotwWidget ===
+
+newCurve   -> newCurve
+updateData -> updateData
+show       -> show
+hide       -> hide
+showAll    -> showAll
+hideAll    -> hideAll
+
+
+=== TimeControl <-> DSR ===
+
+getWl -> getWl
+setWl -> setWl
+newWl <- newWl
+
+getShutter -> getShutter
+setShutter -> setShutter
+newShutter -> newShutter
+
+
+=== TimeControl <-> K6482 ===
+
+getCurrent     -> getCurrent
+newCurrent     <- newCurrent
+
+getChannel     -> getChannel
+setChannel     -> setChannel
+newChannel     <- newChannel
+
+getVoltageFlag -> getVoltageFlag
+setVoltageFlag -> setVoltageFlag
+newVoltageFlag <- newVoltageFlag
+
+getVoltage     -> getVoltage
+setVoltage     -> setVoltage
+newVoltage     <- newVoltage
+
+getNplc        -> getNplc
+setNplc        -> setNplc
+newNplc        <- newNplc
+
+getAverageFlag -> getAverageFlag
+setAverageFlag -> setAverageFlag
+newAverageFlag <- newAverageFlag
+
+getAverage     -> getAverage
+setAverage     -> setAverage
+newAverage     <- newAverage
