@@ -27,12 +27,6 @@ class K6482(QObject):
 		self.filename = filename
 		self.opened = False
 		self.error = []
-		self.rm = pyvisa.ResourceManager('@py')
-
-	def open(self):
-		self.k = self.rm.open_resource(self.filename)
-		self.k.timeout = 25000
-		self.opened = True
 
 		self.channel     = 1
 		self.voltageFlag = False
@@ -49,6 +43,13 @@ class K6482(QObject):
 
 		self.c1 = 0.0
 		self.c2 = 0.0
+
+		self.rm = pyvisa.ResourceManager('@py')
+
+	def open(self):
+		self.k = self.rm.open_resource(self.filename)
+		self.k.timeout = 25000
+		self.opened = True
 
 		self.write("*rst")
 		self.write("output1 off")
@@ -97,7 +98,7 @@ class K6482(QObject):
 		if not self.opened:
 			self.error.append("set_channel: not opened")
 		elif channel != 1 and channel != 2:
-			self.error.append(f"cmd_get_info: '{channel}' out of range [1:2]")
+			self.error.append(f"set_channel: '{channel}' out of range [1:2]")
 		else:
 			self.channel = channel
 

@@ -15,7 +15,7 @@ from device_dsr import DSR
 from device_k6482 import K6482
 
 class TimeControl(QWidget, Ui_timeControl):
-	debug = False
+	debug = True
 
 	reset  = Signal()
 	start  = Signal()
