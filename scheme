@@ -1,3 +1,46 @@
+devices:
+	DSR
+	K6482
+	K2400
+
+widgets:
+	MainWindow
+	Resp
+	Time
+	IP
+	Plot
+	DsrControl
+	K6482Control
+	K2400Control
+
+
+Resp <-   DSR, K6482
+Time <-   DSR, K6482
+IP   <- K6482, K2400
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 === ExpControl <-> RespController ===
 
 start      -> start

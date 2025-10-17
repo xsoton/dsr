@@ -1,10 +1,10 @@
-from typing import Self, List
+from typing import List
 import time
 from PySide6.QtCore import QObject, Signal, Slot
 import serial
 
 class DSR(QObject):
-	debug = False
+	debug = True
 	
 	opened: bool
 	inited: bool
@@ -16,8 +16,8 @@ class DSR(QObject):
 
 	error = List[str]
 
-	newShutter = Signal(bool)
 	newWl      = Signal(float)
+	newShutter = Signal(bool)
 
 	def __init__(self, filename: str, parent=None):
 		super(DSR, self).__init__(parent)
@@ -33,12 +33,17 @@ class DSR(QObject):
 
 	def open(self):
 		if self.debug: print(f"DSR -> open")
-		self.s = serial.Serial(self.filename, timeout=0.1)
-		self.s.reset_input_buffer()
-		self.s.reset_output_buffer()
-		self.opened = True
-		time.sleep(1)
-		self.cmd_hello()
+		try:
+			self.s = serial.Serial(self.filename, timeout=0.1)
+			self.opened = True
+		except serial.SerialException as e:
+			self.error.append(f"open: {str(e)}")
+			self.opened = False
+		if self.opened:
+			self.s.reset_input_buffer()
+			self.s.reset_output_buffer()
+			time.sleep(1)
+			self.cmd_hello()
 	
 	def close(self):
 		if self.debug: print(f"DSR -> close")
@@ -77,7 +82,6 @@ class DSR(QObject):
 		if not self.opened:
 			self.error.append("cmd_hello: not opened")
 		else:
-
 			cmd = "HELLO"
 			for i in range(2):
 				self.write(cmd)
@@ -412,11 +416,8 @@ class DSR(QObject):
 		self.newWl.emit(self.wl)
 		return self.wl
 
-	def get_error(self):
-		return self.error
-
-	def clear_error(self):
-		self.error.clear()
+	def   get_error(self): return self.error
+	def clear_error(self): self.error.clear()
 
 
 if __name__ == '__main__':

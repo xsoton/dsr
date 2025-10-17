@@ -1,4 +1,4 @@
-objects = ui_mainWindow.py ui_expControl.py ui_resControl.py ui_timeControl.py
+objects = ui_DSRControl.py ui_K6482Control.py ui_MainWindow.py ui_RespControl.py ui_TimeControl.py
 
 all: $(objects)
 .PHONY: all

@@ -3,20 +3,20 @@ from PySide6.QtCore import QObject, Signal, Slot
 import pyvisa
 
 class K6482(QObject):
-	debug = False
+	debug = True
 
 	opened: bool
 
-	channel: int
-	voltageFlag: bool
-	voltage: float
-	nplc: int
+	channel    : int
+	output     : bool
+	voltage    : float
+	nplc       : int
 	averageFlag: bool
-	average: int
+	average    : int
 
 	newCurrent     = Signal(float, float)
 	newChannel     = Signal(int)
-	newVoltageFlag = Signal(bool)
+	newOutput      = Signal(bool)
 	newVoltage     = Signal(float)
 	newNplc        = Signal(int)
 	newAverageFlag = Signal(bool)
@@ -29,13 +29,13 @@ class K6482(QObject):
 		self.error = []
 
 		self.channel     = 1
-		self.voltageFlag = False
+		self.output      = False
 		self.voltage     = 0.0
 		self.nplc        = 1
 		self.averageFlag = False
 		self.average     = 1
 
-		self._voltageFlag = False
+		self._output      = False
 		self._voltage     = False
 		self._nplc        = False
 		self._averageFlag = False
@@ -44,35 +44,40 @@ class K6482(QObject):
 		self.c1 = 0.0
 		self.c2 = 0.0
 
-		self.rm = pyvisa.ResourceManager('@py')
-
 	def open(self):
-		self.k = self.rm.open_resource(self.filename)
-		self.k.timeout = 25000
-		self.opened = True
-
-		self.write("*rst")
-		self.write("output1 off")
-		self.write("output2 off")
-		self.write("system:azero on")
-		self.write("sense1:current:range:auto on")
-		self.write("sense1:current:nplcycles 1")
-		self.write("sense1:average off")
-		self.write("sense1:average:count 1")
-		self.write("sense1:average:tcontrol repeat")
-		self.write("source1:gconnect 0")
-		self.write("source1:voltage:mode fixed")
-		self.write("source1:voltage 0")
-		self.write("sense2:current:range:auto on")
-		self.write("sense2:current:nplcycles 1")
-		self.write("sense2:average off")
-		self.write("sense2:average:count 1")
-		self.write("sense2:average:tcontrol repeat")
-		self.write("source2:gconnect 0")
-		self.write("source2:voltage:mode fixed")
-		self.write("source2:voltage 0")
+		if self.debug: print(f"K6482 -> open")
+		try:
+			self.rm = pyvisa.ResourceManager('@py')
+			self.k = self.rm.open_resource(self.filename)
+			self.k.timeout = 25000
+			self.opened = True
+		except Exception as e:
+			self.error.append(f"open: {str(e)}")
+			self.opened = False
+		if self.opened:
+			self.write("*rst")
+			self.write("output1 off")
+			self.write("output2 off")
+			self.write("system:azero on")
+			self.write("sense1:current:range:auto on")
+			self.write("sense1:current:nplcycles 1")
+			self.write("sense1:average off")
+			self.write("sense1:average:count 1")
+			self.write("sense1:average:tcontrol repeat")
+			self.write("source1:gconnect 0")
+			self.write("source1:voltage:mode fixed")
+			self.write("source1:voltage 0")
+			self.write("sense2:current:range:auto on")
+			self.write("sense2:current:nplcycles 1")
+			self.write("sense2:average off")
+			self.write("sense2:average:count 1")
+			self.write("sense2:average:tcontrol repeat")
+			self.write("source2:gconnect 0")
+			self.write("source2:voltage:mode fixed")
+			self.write("source2:voltage 0")
 
 	def close(self):
+		if self.debug: print(f"K6482 -> close")
 		if not self.opened:
 			self.error.append("write: not opened")
 		else:
@@ -135,21 +140,21 @@ class K6482(QObject):
 		if not self.opened:
 			self.error.append("set_output: not opened")
 		else:
-			self.voltageFlag = output
-			self._voltageFlag = True
+			self.output = output
+			self._output = True
 			self.write(f"output{self.channel} {"on" if output else "off"}")
 
 	def get_output(self):
 		if not self.opened:
 			self.error.append("get_output: not opened")
 			return False
-		elif self._voltageFlag:
-			return self.voltageFlag
+		elif self._output:
+			return self.output
 		else:
 			self.write(f"output{self.channel}?")
 			buf = self.read()
-			self.voltageFlag = bool(int(buf))
-			return self.voltageFlag
+			self.output = bool(int(buf))
+			return self.output
 
 	def set_nplc(self, nplc: int):
 		if not self.opened:
@@ -252,19 +257,19 @@ class K6482(QObject):
 		self.newChannel.emit(self.channel)
 
 	@Slot()
-	def getVoltageFlag(self):
-		if self.debug: print(f"K6482 -> getVoltageFlag")
+	def getOutput(self):
+		if self.debug: print(f"K6482 -> getOutput")
 		self.get_output()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newVoltageFlag.emit(self.voltageFlag)
-		return self.voltageFlag
+		self.newOutput.emit(self.output)
+		return self.output
 
 	@Slot(bool)
-	def setVoltageFlag(self, voltageFlag: bool):
-		if self.debug: print(f"K6482 -> setVoltageFlag {voltageFlag}")
-		self.set_output(voltageFlag)
+	def setOutput(self, output: bool):
+		if self.debug: print(f"K6482 -> setOutput {output}")
+		self.set_output(output)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newVoltageFlag.emit(self.voltageFlag)
+		self.newOutput.emit(self.output)
 
 	@Slot()
 	def getVoltage(self):
@@ -326,5 +331,5 @@ class K6482(QObject):
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
 		self.newAverage.emit(self.average)
 
-	def get_error(self): return self.error
+	def   get_error(self): return self.error
 	def clear_error(self): self.error.clear()
