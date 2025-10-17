@@ -8,17 +8,17 @@ class K6482(QObject):
 	opened: bool
 
 	channel    : int
-	output     : bool
-	voltage    : float
-	nplc       : int
-	averageFlag: bool
-	average    : int
+	output     : list[bool]
+	voltage    : list[float]
+	nplc       : list[float]
+	averageFlag: list[bool]
+	average    : list[int]
 
 	newCurrent     = Signal(float, float)
 	newChannel     = Signal(int)
 	newOutput      = Signal(bool)
 	newVoltage     = Signal(float)
-	newNplc        = Signal(int)
+	newNplc        = Signal(float)
 	newAverageFlag = Signal(bool)
 	newAverage     = Signal(int)
 
@@ -28,21 +28,7 @@ class K6482(QObject):
 		self.opened = False
 		self.error = []
 
-		self.channel     = 1
-		self.output      = False
-		self.voltage     = 0.0
-		self.nplc        = 1
-		self.averageFlag = False
-		self.average     = 1
-
-		self._output      = False
-		self._voltage     = False
-		self._nplc        = False
-		self._averageFlag = False
-		self._average     = False
-
-		self.c1 = 0.0
-		self.c2 = 0.0
+		self.channel = 1
 
 	def open(self):
 		if self.debug: print(f"K6482 -> open")
@@ -120,63 +106,45 @@ class K6482(QObject):
 		elif voltage < -10.0 or voltage > 10:
 			self.error.append(f"set_voltage: '{voltage}' out of range [-10.0:10.0]")
 		else:
-			self.voltage = voltage
-			self._voltage = True
-			self.write(f"source{self.channel}:voltage {self.voltage:.3f}")
+			self.write(f"source{self.channel}:voltage {voltage:.3f}")
 
 	def get_voltage(self):
 		if not self.opened:
 			self.error.append("get_voltage: not opened")
 			return -1
-		elif self._voltage:
-			return self.voltage
 		else:
 			self.write(f"source{self.channel}:voltage?")
-			buf = self.read()
-			self.voltage = float(buf)
-			return self.voltage
+			return float(self.read())
 
 	def set_output(self, output: bool):
 		if not self.opened:
 			self.error.append("set_output: not opened")
 		else:
-			self.output = output
-			self._output = True
 			self.write(f"output{self.channel} {"on" if output else "off"}")
 
 	def get_output(self):
 		if not self.opened:
 			self.error.append("get_output: not opened")
 			return False
-		elif self._output:
-			return self.output
 		else:
 			self.write(f"output{self.channel}?")
-			buf = self.read()
-			self.output = bool(int(buf))
-			return self.output
+			return bool(int(self.read()))
 
-	def set_nplc(self, nplc: int):
+	def set_nplc(self, nplc: float):
 		if not self.opened:
 			self.error.append("set_nplc: not opened")
 		elif nplc < 0.01 or nplc > 10.0:
 			self.error.append(f"set_nplc: '{nplc}' out of range [0.01:10.0]")
 		else:
-			self.nplc = nplc
-			self._nplc = True
-			self.write(f"sense{self.channel}:current:nplcycles {self.nplc}")
+			self.write(f"sense{self.channel}:current:nplcycles {nplc}")
 
 	def get_nplc(self):
 		if not self.opened:
 			self.error.append("get_nplc: not opened")
 			return -1.0
-		elif self._nplc:
-			return self.nplc
 		else:
 			self.write(f"sense{self.channel}:current:nplcycles?")
-			buf = self.read()
-			self.nplc = int(buf)
-			return self.nplc
+			return float(self.read())
 
 	def set_average(self, average: int):
 		if not self.opened:
@@ -184,42 +152,30 @@ class K6482(QObject):
 		elif average < 1 or average > 100:
 			self.error.append(f"set_average: '{average}' out of range [1:100]")
 		else:
-			self.average = average
-			self._average = True
-			self.write(f"sense{self.channel}:average:count {self.average}")
+			self.write(f"sense{self.channel}:average:count {average}")
 
 	def get_average(self):
 		if not self.opened:
 			self.error.append("get_average: not opened")
 			return -1
-		elif self._average:
-			return self.average
 		else:
 			self.write(f"sense{self.channel}:average:count?")
-			buf = self.read()
-			self.average = int(buf)
-			return self.average
+			return int(self.read())
 
 
 	def set_averageFlag(self, averageFlag: bool):
 		if not self.opened:
 			self.error.append("set_averageFlag: not opened")
 		else:
-			self.averageFlag = averageFlag
-			self._averageFlag = True
 			self.write(f"sense{self.channel}:average {"on" if averageFlag else "off"}")
 
 	def get_averageFlag(self):
 		if not self.opened:
 			self.error.append("get_averageFlag: not opened")
 			return False
-		elif self._averageFlag:
-			return self.averageFlag
 		else:
 			self.write(f"sense{self.channel}:average?")
-			buf = self.read()
-			self.averageFlag = bool(int(buf))
-			return self.averageFlag
+			return bool(int(self.read()))
 
 	def get_current(self):
 		if not self.opened:
@@ -227,19 +183,15 @@ class K6482(QObject):
 			return 0.0
 		else:
 			self.write("read?")
-			buf = self.read()
-			ii = buf.split(",")
-			self.c1 = float(ii[0])
-			self.c2 = float(ii[1])
-			return self.c1 if self.channel == 1 else self.c2
+			ii = self.read().split(",")
+			return float(ii[0]), float(ii[1])
 
 	@Slot()
 	def getCurrent(self):
 		if self.debug: print("K6482 -> getCurrent")
-		self.get_current()
+		c1, c2 = self.get_current()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newCurrent.emit(self.c1, self.c2)
-		return self.c1 if self.channel == 1 else self.c2
+		self.newCurrent.emit(c1, c2)
 
 	@Slot()
 	def getChannel(self):
@@ -247,7 +199,6 @@ class K6482(QObject):
 		self.get_channel()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
 		self.newChannel.emit(self.channel)
-		return self.channel
 
 	@Slot(int)
 	def setChannel(self, channel: int):
@@ -259,77 +210,72 @@ class K6482(QObject):
 	@Slot()
 	def getOutput(self):
 		if self.debug: print(f"K6482 -> getOutput")
-		self.get_output()
+		output = self.get_output()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newOutput.emit(self.output)
-		return self.output
+		self.newOutput.emit(output)
 
 	@Slot(bool)
 	def setOutput(self, output: bool):
 		if self.debug: print(f"K6482 -> setOutput {output}")
 		self.set_output(output)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newOutput.emit(self.output)
+		self.newOutput.emit(output)
 
 	@Slot()
 	def getVoltage(self):
 		if self.debug: print(f"K6482 -> getVoltage")
-		self.get_voltage()
+		voltage = self.get_voltage()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newVoltage.emit(self.voltage)
-		return self.voltage
+		self.newVoltage.emit(voltage)
 
 	@Slot(float)
 	def setVoltage(self, voltage: float):
 		if self.debug: print(f"K6482 -> setVoltage {voltage}")
 		self.set_voltage(voltage)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newVoltage.emit(self.voltage)
+		self.newVoltage.emit(voltage)
 
 	@Slot()
 	def getNplc(self):
 		if self.debug: print(f"K6482 -> getNplc")
-		self.get_nplc()
+		nplc = self.get_nplc()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newNplc.emit(self.nplc)
-		return self.nplc
+		self.newNplc.emit(nplc)
 
-	@Slot(int)
-	def setNplc(self, nplc: int):
+	@Slot(float)
+	def setNplc(self, nplc: float):
 		if self.debug: print(f"K6482 -> setNplc {nplc}")
 		self.set_nplc(nplc)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newNplc.emit(self.nplc)
+		self.newNplc.emit(nplc)
 
 	@Slot()
 	def getAverageFlag(self):
 		if self.debug: print(f"K6482 -> getAverageFlag")
-		self.get_averageFlag()
+		averageFlag = self.get_averageFlag()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newAverageFlag.emit(self.averageFlag)
-		return self.averageFlag
+		self.newAverageFlag.emit(averageFlag)
 
 	@Slot(bool)
 	def setAverageFlag(self, averageFlag: bool):
 		if self.debug: print(f"K6482 -> setAverageFlag {averageFlag}")
 		self.set_averageFlag(averageFlag)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newAverageFlag.emit(self.averageFlag)
+		self.newAverageFlag.emit(averageFlag)
 
 	@Slot()
 	def getAverage(self):
 		if self.debug: print(f"K6482 -> getAverage")
-		self.get_average()
+		average = self.get_average()
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newAverage.emit(self.average)
-		return self.average
+		self.newAverage.emit(average)
 
 	@Slot(int)
 	def setAverage(self, average: int):
 		if self.debug: print(f"K6482 -> setAverage {average}")
 		self.set_average(average)
 		if len(self.error) > 0: print(f"K6482 errors {self.error}"); self.clear_error()
-		self.newAverage.emit(self.average)
+		self.newAverage.emit(average)
 
 	def   get_error(self): return self.error
 	def clear_error(self): self.error.clear()

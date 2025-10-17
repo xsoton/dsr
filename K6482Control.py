@@ -18,7 +18,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 	getVoltage     = Signal()
 	setVoltage     = Signal(float)
 	getNplc        = Signal()
-	setNplc        = Signal(int)
+	setNplc        = Signal(float)
 	getAverageFlag = Signal()
 	setAverageFlag = Signal(bool)
 	getAverage     = Signal()
@@ -28,7 +28,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 	newChannel     = Signal(int)
 	newOutput      = Signal(bool)
 	newVoltage     = Signal(float)
-	newNplc        = Signal(int)
+	newNplc        = Signal(float)
 	newAverageFlag = Signal(bool)
 	newAverage     = Signal(int)
 
@@ -55,13 +55,13 @@ class K6482Control(QWidget, Ui_K6482Control):
 		self.eThread.start()
 		self.k6482.moveToThread(self.eThread)
 
-		re = QRegularExpression(r"[\+\-]?((10(\.0{0,2})?)|(\d(.\d{,2})?))")
+		re = QRegularExpression(r"[\+\-]?((10(\.0{0,2})?)|(\d(\.\d{,2})?))")
 		v = QRegularExpressionValidator(re, self)
 		v.setLocale(QLocale(QLocale.C))
 		self.edit_voltage.setValidator(v)
 		self.edit_voltage.setStyleSheet("background: yellow")
 
-		re = QRegularExpression(r"(10(\.0{0,2})?)|(\d(.\d{,2})?)")
+		re = QRegularExpression(r"(10(\.0{0,2})?)|(\d(\.\d{,2})?)")
 		v = QRegularExpressionValidator(re, self)
 		v.setLocale(QLocale(QLocale.C))
 		self.edit_nplc.setValidator(v)
@@ -101,13 +101,15 @@ class K6482Control(QWidget, Ui_K6482Control):
 		self.check_average .clicked      .connect(self.average_clicked)
 		self.edit_average  .returnPressed.connect(self.average_pressed)
 		self.edit_average  .textEdited   .connect(self.average_edited)
-		self.edit_average  .inputRejected.connect(self.average_edited)
+		self.edit_average  .inputRejected.connect(self.average_rejected)
 
 		self.getCurrent    .connect(self.k6482.getCurrent)
 		self.getChannel    .connect(self.k6482.getChannel)
 		self.setChannel    .connect(self.k6482.setChannel)
 		self.getOutput     .connect(self.k6482.getOutput)
 		self.setOutput     .connect(self.k6482.setOutput)
+		self.getVoltage    .connect(self.k6482.getVoltage)
+		self.setVoltage    .connect(self.k6482.setVoltage)
 		self.getNplc       .connect(self.k6482.getNplc)
 		self.setNplc       .connect(self.k6482.setNplc)
 		self.getAverageFlag.connect(self.k6482.getAverageFlag)
@@ -118,6 +120,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		self.k6482.newCurrent    .connect(self.onNewCurrent)
 		self.k6482.newChannel    .connect(self.onNewChannel)
 		self.k6482.newOutput     .connect(self.onNewOutput)
+		self.k6482.newVoltage    .connect(self.onNewVoltage)
 		self.k6482.newNplc       .connect(self.onNewNplc)
 		self.k6482.newAverageFlag.connect(self.onNewAverageFlag)
 		self.k6482.newAverage    .connect(self.onNewAverage)
@@ -151,7 +154,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 			self.setVoltage.emit(voltage)
 	def voltage_edited(self, text):
 		if self.debug: print(f"K6482Control -> voltage_edited")
-		if len(text) == 0 or self.voltage != float(text):
+		if len(text) == 0 or text[0] == "+" or text[0] == "-" or self.voltage != float(text):
 			self.edit_voltage.setStyleSheet("background: yellow")
 		else:
 			self.edit_voltage.setStyleSheet("")
@@ -163,7 +166,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		if self.debug: print(f"K6482Control -> onNewVoltage {voltage=}")
 		self.voltage = voltage
 		self.edit_voltage.setStyleSheet("background: green; color: white")
-		self.edit_voltage.setText(f"{self.voltage:.3f}")
+		self.edit_voltage.setText(f"{self.voltage:.2f}")
 		self.setDisabled(False)
 		self.newVoltage.emit(self.voltage)
 
@@ -190,7 +193,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		if self.debug: print(f"K6482Control -> onNewNplc {nplc=}")
 		self.nplc = nplc
 		self.edit_nplc.setStyleSheet("background: green; color: white")
-		self.edit_nplc.setText(f"{self.nplc:.3f}")
+		self.edit_nplc.setText(f"{self.nplc:.2f}")
 		self.setDisabled(False)
 		self.newNplc.emit(self.nplc)
 
@@ -217,7 +220,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		if self.debug: print(f"K6482Control -> onNewAverage {average=}")
 		self.average = average
 		self.edit_average.setStyleSheet("background: green; color: white")
-		self.edit_average.setText(f"{self.average:.3f}")
+		self.edit_average.setText(f"{self.average}")
 		self.setDisabled(False)
 		self.newAverage.emit(self.average)
 
@@ -226,11 +229,21 @@ class K6482Control(QWidget, Ui_K6482Control):
 		channel = 1 if self.radio_channel1.isChecked() else 2
 		self.setDisabled(True)
 		self.setChannel.emit(channel)
+		self.getOutput     .emit()
+		self.getVoltage    .emit()
+		self.getNplc       .emit()
+		self.getAverageFlag.emit()
+		self.getAverage    .emit()
 	def channel2_clicked(self):
 		if self.debug: print(f"K6482Control -> channel2_clicked")
-		channel = 2 if self.radio_channel1.isChecked() else 1
+		channel = 2 if self.radio_channel2.isChecked() else 1
 		self.setDisabled(True)
 		self.setChannel.emit(channel)
+		self.getOutput     .emit()
+		self.getVoltage    .emit()
+		self.getNplc       .emit()
+		self.getAverageFlag.emit()
+		self.getAverage    .emit()
 	@Slot(int)
 	def onNewChannel(self, channel: int):
 		if self.debug: print(f"K6482Control -> onNewChannel {channel=}")
