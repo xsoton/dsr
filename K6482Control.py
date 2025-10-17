@@ -127,7 +127,8 @@ class K6482Control(QWidget, Ui_K6482Control):
 
 	def activate(self):
 		if self.debug: print(f"K6482Control -> activate")
-		if self.activated:
+		if not self.activated:
+			self.activated = True
 			self.getCurrent.emit()
 
 	def deactivate(self):
@@ -287,5 +288,6 @@ class K6482Control(QWidget, Ui_K6482Control):
 if __name__ == '__main__':
 	app = QApplication(sys.argv)
 	w = K6482Control()
+	w.activate()
 	w.show()
 	app.exec()
