@@ -3,7 +3,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 import pyvisa
 
 class K6482(QObject):
-	debug = True
+	debug = False
 
 	opened: bool
 

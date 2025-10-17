@@ -24,13 +24,13 @@ class Ui_TimeControl(object):
     def setupUi(self, TimeControl):
         if not TimeControl.objectName():
             TimeControl.setObjectName(u"TimeControl")
-        TimeControl.resize(318, 660)
+        TimeControl.resize(306, 660)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(TimeControl.sizePolicy().hasHeightForWidth())
         TimeControl.setSizePolicy(sizePolicy)
-        TimeControl.setMaximumSize(QSize(2000, 16777215))
+        TimeControl.setMaximumSize(QSize(1000, 16777215))
         self.formLayout = QFormLayout(TimeControl)
         self.formLayout.setObjectName(u"formLayout")
         self.label_sample = QLabel(TimeControl)
@@ -54,6 +54,7 @@ class Ui_TimeControl(object):
         self.edit_exp = QPlainTextEdit(TimeControl)
         self.edit_exp.setObjectName(u"edit_exp")
         self.edit_exp.setMinimumSize(QSize(0, 100))
+        self.edit_exp.setMaximumSize(QSize(16777215, 200))
 
         self.formLayout.setWidget(2, QFormLayout.ItemRole.SpanningRole, self.edit_exp)
 
@@ -90,6 +91,7 @@ class Ui_TimeControl(object):
 
         self.tableview_time = QTableWidget(TimeControl)
         self.tableview_time.setObjectName(u"tableview_time")
+        self.tableview_time.setMaximumSize(QSize(300, 16777215))
 
         self.formLayout.setWidget(5, QFormLayout.ItemRole.SpanningRole, self.tableview_time)
 

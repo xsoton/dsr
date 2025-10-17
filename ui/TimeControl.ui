@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>318</width>
+    <width>306</width>
     <height>660</height>
    </rect>
   </property>
@@ -18,7 +18,7 @@
   </property>
   <property name="maximumSize">
    <size>
-    <width>2000</width>
+    <width>1000</width>
     <height>16777215</height>
    </size>
   </property>
@@ -65,6 +65,12 @@
       <size>
        <width>0</width>
        <height>100</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>200</height>
       </size>
      </property>
     </widget>
@@ -122,7 +128,14 @@
     </widget>
    </item>
    <item row="5" column="0" colspan="2">
-    <widget class="QTableWidget" name="tableview_time"/>
+    <widget class="QTableWidget" name="tableview_time">
+     <property name="maximumSize">
+      <size>
+       <width>300</width>
+       <height>16777215</height>
+      </size>
+     </property>
+    </widget>
    </item>
    <item row="6" column="0" colspan="2">
     <widget class="QPushButton" name="button_load">

@@ -24,7 +24,8 @@ class Ui_K6482Control(object):
         if not K6482Control.objectName():
             K6482Control.setObjectName(u"K6482Control")
         K6482Control.setEnabled(True)
-        K6482Control.resize(335, 168)
+        K6482Control.resize(300, 199)
+        K6482Control.setMaximumSize(QSize(1000, 16777215))
         self.formLayout = QFormLayout(K6482Control)
         self.formLayout.setObjectName(u"formLayout")
         self.label_channel = QLabel(K6482Control)

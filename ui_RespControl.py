@@ -23,13 +23,13 @@ class Ui_RespControl(object):
     def setupUi(self, RespControl):
         if not RespControl.objectName():
             RespControl.setObjectName(u"RespControl")
-        RespControl.resize(325, 673)
+        RespControl.resize(303, 673)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(RespControl.sizePolicy().hasHeightForWidth())
         RespControl.setSizePolicy(sizePolicy)
-        RespControl.setMaximumSize(QSize(2000, 16777215))
+        RespControl.setMaximumSize(QSize(1000, 16777215))
         self.gridLayout = QGridLayout(RespControl)
         self.gridLayout.setObjectName(u"gridLayout")
         self.button_load = QPushButton(RespControl)
@@ -127,6 +127,7 @@ class Ui_RespControl(object):
 
         self.tableview_resp = QTableWidget(RespControl)
         self.tableview_resp.setObjectName(u"tableview_resp")
+        self.tableview_resp.setMaximumSize(QSize(1000, 16777215))
 
         self.gridLayout.addWidget(self.tableview_resp, 6, 0, 1, 2)
 

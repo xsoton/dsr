@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt, QThread, Signal, Slot, QLocale, QRegularExpression
-from PySide6.QtGui import QRegularExpressionValidator, QDoubleValidator
+from PySide6.QtGui import QRegularExpressionValidator
 from PySide6.QtWidgets import QApplication, QWidget
 
 import sys
@@ -8,7 +8,7 @@ from ui_DSRControl import Ui_DSRControl
 from DSR import DSR
 
 class DSRControl(QWidget, Ui_DSRControl):
-	debug = True
+	debug = False
 
 	getWl      = Signal()
 	setWl      = Signal(float)
@@ -21,6 +21,8 @@ class DSRControl(QWidget, Ui_DSRControl):
 	def __init__(self, parent=None):
 		super(DSRControl, self).__init__(parent)
 		self.setupUi(self)
+
+		self.activated = True
 
 		self.wl = 0.0
 		self.shutter = False
@@ -37,7 +39,6 @@ class DSRControl(QWidget, Ui_DSRControl):
 
 		re = QRegularExpression(r"((2000)|(1\d{3})|([2-9]\d{2}))(\.\d{,3})?")
 		v = QRegularExpressionValidator(re, self)
-		# v = QDoubleValidator(200.00, 2000.00, 2, self)
 		v.setLocale(QLocale(QLocale.C))
 		self.edit_wl.setValidator(v)
 
@@ -67,6 +68,17 @@ class DSRControl(QWidget, Ui_DSRControl):
 		self.setShutter    .connect(self.dsr.setShutter)
 		self.dsr.newShutter.connect(self.onNewShutter)
 
+	def activate(self):
+		if self.debug: print(f"DSRControl -> activate")
+		if not self.activated:
+			self.activated = True
+			self.setDisabled(False)
+
+	def deactivate(self):
+		if self.debug: print(f"DSRControl -> deactivate")
+		self.activated = False
+		self.setDisabled(True)
+
 	def wl_pressed(self):
 		if self.debug: print(f"DSRControl -> wl_pressed")
 		wl = float(self.edit_wl.text())
@@ -94,7 +106,7 @@ class DSRControl(QWidget, Ui_DSRControl):
 		self.wl = wl
 		self.edit_wl.setStyleSheet("background: green; color: white")
 		self.edit_wl.setText(f"{self.wl:.3f}")
-		self.setDisabled(False)
+		self.setDisabled(not self.activated)
 		self.newWl.emit(self.wl)
 
 	def shutter_clicked(self):
@@ -107,7 +119,7 @@ class DSRControl(QWidget, Ui_DSRControl):
 		if self.debug: print(f"DSRControl -> newShutter {shutter}")
 		self.shutter = shutter
 		self.check_shutter.setCheckState(Qt.Checked if self.shutter else Qt.Unchecked)
-		self.setDisabled(False)
+		self.setDisabled(not self.activated)
 		self.newShutter.emit(self.shutter)
 
 	def closeEvent(self, event):

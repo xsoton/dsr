@@ -4,7 +4,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 import serial
 
 class DSR(QObject):
-	debug = True
+	debug = False
 	
 	opened: bool
 	inited: bool

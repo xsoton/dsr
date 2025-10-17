@@ -22,7 +22,8 @@ class Ui_DSRControl(object):
     def setupUi(self, DSRControl):
         if not DSRControl.objectName():
             DSRControl.setObjectName(u"DSRControl")
-        DSRControl.resize(400, 61)
+        DSRControl.resize(300, 61)
+        DSRControl.setMaximumSize(QSize(1000, 16777215))
         self.formLayout = QFormLayout(DSRControl)
         self.formLayout.setObjectName(u"formLayout")
         self.label_wl = QLabel(DSRControl)

@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot, QLocale, QRegularExpression
-from PySide6.QtGui import QRegularExpressionValidator, QDoubleValidator
+from PySide6.QtGui import QRegularExpressionValidator
 from PySide6.QtWidgets import QApplication, QWidget
 
 import sys
@@ -8,7 +8,7 @@ from ui_K6482Control import Ui_K6482Control
 from K6482 import K6482
 
 class K6482Control(QWidget, Ui_K6482Control):
-	debug = True
+	debug = False
 
 	getCurrent     = Signal()
 	getChannel     = Signal()
@@ -37,6 +37,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		self.setupUi(self)
 
 		self.activated = False
+		self.timer_activated = False
 
 		self.channel     = 1
 		self.output      = False
@@ -129,11 +130,22 @@ class K6482Control(QWidget, Ui_K6482Control):
 		if self.debug: print(f"K6482Control -> activate")
 		if not self.activated:
 			self.activated = True
-			self.getCurrent.emit()
+			self.setDisabled(False)
 
 	def deactivate(self):
 		if self.debug: print(f"K6482Control -> deactivate")
 		self.activated = False
+		self.setDisabled(True)
+
+	def timer_activate(self):
+		if self.debug: print(f"K6482Control -> timer_activate")
+		if not self.timer_activated:
+			self.timer_activated = True
+			self.getCurrent.emit()
+
+	def timer_deactivate(self):
+		if self.debug: print(f"K6482Control -> timer_deactivate")
+		self.timer_activated = False
 
 	@Slot(float, float)
 	def onNewCurrent(self, c1: float, c2: float):
@@ -141,7 +153,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		self.label_current1.setText(f"{c1:+.5e}")
 		self.label_current2.setText(f"{c2:+.5e}")
 		self.newCurrent.emit(c1, c2)
-		if self.activated:
+		if self.timer_activated:
 			self.getCurrent.emit()
 
 	def voltage_pressed(self):
@@ -168,7 +180,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		self.voltage = voltage
 		self.edit_voltage.setStyleSheet("background: green; color: white")
 		self.edit_voltage.setText(f"{self.voltage:.2f}")
-		self.setDisabled(False)
+		self.setDisabled(not self.activated)
 		self.newVoltage.emit(self.voltage)
 
 	def nplc_pressed(self):
@@ -195,7 +207,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		self.nplc = nplc
 		self.edit_nplc.setStyleSheet("background: green; color: white")
 		self.edit_nplc.setText(f"{self.nplc:.2f}")
-		self.setDisabled(False)
+		self.setDisabled(not self.activated)
 		self.newNplc.emit(self.nplc)
 
 	def average_pressed(self):
@@ -222,7 +234,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		self.average = average
 		self.edit_average.setStyleSheet("background: green; color: white")
 		self.edit_average.setText(f"{self.average}")
-		self.setDisabled(False)
+		self.setDisabled(not self.activated)
 		self.newAverage.emit(self.average)
 
 	def channel1_clicked(self):
@@ -250,7 +262,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		if self.debug: print(f"K6482Control -> onNewChannel {channel=}")
 		self.channel = channel
 		self.radio_channel1.setChecked(True if channel == 1 else False)
-		self.setDisabled(False)
+		self.setDisabled(not self.activated)
 		self.newChannel.emit(self.channel)
 
 	def output_clicked(self):
@@ -263,7 +275,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		if self.debug: print(f"K6482Control -> onNewOutput {output=}")
 		self.output = output
 		self.check_output.setChecked(self.output)
-		self.setDisabled(False)
+		self.setDisabled(not self.activated)
 		self.newOutput.emit(self.output)
 
 	def average_clicked(self):
@@ -276,7 +288,7 @@ class K6482Control(QWidget, Ui_K6482Control):
 		if self.debug: print(f"K6482Control -> onNewAverageFlag {averageFlag=}")
 		self.averageFlag = averageFlag
 		self.check_average.setChecked(self.averageFlag)
-		self.setDisabled(False)
+		self.setDisabled(not self.activated)
 		self.newAverageFlag.emit(self.averageFlag)
 
 	def closeEvent(self, event):
@@ -289,5 +301,6 @@ if __name__ == '__main__':
 	app = QApplication(sys.argv)
 	w = K6482Control()
 	w.activate()
+	w.timer_activate()
 	w.show()
 	app.exec()

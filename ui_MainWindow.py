@@ -36,19 +36,6 @@ class Ui_MainWindow(object):
         self.centralwidget.setObjectName(u"centralwidget")
         self.horizontalLayout = QHBoxLayout(self.centralwidget)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.scroll_devices = QScrollArea(self.centralwidget)
-        self.scroll_devices.setObjectName(u"scroll_devices")
-        self.scroll_devices.setMaximumSize(QSize(200, 16777215))
-        self.scroll_devices.setWidgetResizable(True)
-        self.scroll_devices_contents = QWidget()
-        self.scroll_devices_contents.setObjectName(u"scroll_devices_contents")
-        self.scroll_devices_contents.setGeometry(QRect(0, 0, 198, 862))
-        self.verticalLayout = QVBoxLayout(self.scroll_devices_contents)
-        self.verticalLayout.setObjectName(u"verticalLayout")
-        self.scroll_devices.setWidget(self.scroll_devices_contents)
-
-        self.horizontalLayout.addWidget(self.scroll_devices)
-
         self.tabs = QTabWidget(self.centralwidget)
         self.tabs.setObjectName(u"tabs")
         self.tabs.setMinimumSize(QSize(572, 0))
@@ -61,6 +48,19 @@ class Ui_MainWindow(object):
         self.tabs.setMovable(False)
 
         self.horizontalLayout.addWidget(self.tabs)
+
+        self.scroll_devices = QScrollArea(self.centralwidget)
+        self.scroll_devices.setObjectName(u"scroll_devices")
+        self.scroll_devices.setMaximumSize(QSize(300, 16777215))
+        self.scroll_devices.setWidgetResizable(True)
+        self.scroll_devices_contents = QWidget()
+        self.scroll_devices_contents.setObjectName(u"scroll_devices_contents")
+        self.scroll_devices_contents.setGeometry(QRect(0, 0, 298, 862))
+        self.verticalLayout = QVBoxLayout(self.scroll_devices_contents)
+        self.verticalLayout.setObjectName(u"verticalLayout")
+        self.scroll_devices.setWidget(self.scroll_devices_contents)
+
+        self.horizontalLayout.addWidget(self.scroll_devices)
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
