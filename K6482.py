@@ -33,7 +33,7 @@ class K6482(QObject):
 	def open(self):
 		if self.debug: print(f"K6482 -> open")
 		try:
-			self.rm = pyvisa.ResourceManager('@py')
+			self.rm = pyvisa.ResourceManager()
 			self.k = self.rm.open_resource(self.filename)
 			self.k.timeout = 25000
 			self.opened = True

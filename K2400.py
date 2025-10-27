@@ -31,7 +31,7 @@ class K2400(QObject):
 		self.current  = 0.0
 		self.nplc     = 1
 
-		self.rm = pyvisa.ResourceManager('@py')
+		self.rm = pyvisa.ResourceManager('')
 
 	def open(self):
 		self.k = self.rm.open_resource(self.filename)
