@@ -27,7 +27,7 @@ class DSRControl(QWidget, Ui_DSRControl):
 		self.wl = 0.0
 		self.shutter = False
 
-		self.dsr = DSR("/dev/ttyUSB0")
+		self.dsr = DSR("COM4")
 		self.dsr.open()
 
 		self.eThread = QThread()
